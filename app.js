@@ -1,10 +1,38 @@
 // === Data Management ===
-if (!localStorage.getItem('data_cleared_once')) {
-    localStorage.removeItem('laundryData');
-    localStorage.setItem('data_cleared_once', 'true');
-}
-let appData = JSON.parse(localStorage.getItem('laundryData')) || [];
+const WEB_APP_URL = "https://script.google.com/a/macros/lifegoeson.kr/s/AKfycbxwJd21AxK_1duyM6QCzoriO7YVwpz2llRhkclTyR91A5G3SsEOfrsRg8RJ7lc_sxFW/exec";
+let appData = [];
 let currentParsedData = null;
+
+// Loading State
+function showLoading(show) {
+    const overlay = document.getElementById('loading-overlay');
+    if (show) overlay.classList.remove('hidden');
+    else overlay.classList.add('hidden');
+}
+
+// Fetch Initial Data
+async function loadData() {
+    showLoading(true);
+    try {
+        const response = await fetch(WEB_APP_URL);
+        // CORS/권한 에러 발생 시 response.json()이 안될 수 있음
+        const result = await response.json();
+        if (result.status === 'success') {
+            appData = result.data || [];
+            updateMonthFilters();
+            renderTable();
+            renderDashboard();
+        } else {
+            console.error("데이터 로드 오류:", result);
+            alert("데이터를 불러오는 중 오류가 발생했습니다.");
+        }
+    } catch (err) {
+        console.error("Fetch Error:", err);
+        alert("네트워크 오류 발생. 구글 앱스 스크립트의 접근 권한이 '모든 사용자'로 되어있는지 확인해주세요.");
+    } finally {
+        showLoading(false);
+    }
+}
 
 // Chart Instances
 let reasonChartInst = null;
@@ -122,22 +150,44 @@ function showParsedResult(data) {
 }
 
 // === Save Action ===
-document.getElementById('confirm-save-btn').addEventListener('click', () => {
+document.getElementById('confirm-save-btn').addEventListener('click', async () => {
     if(currentParsedData) {
-        appData.push({ ...currentParsedData, id: Date.now() });
-        localStorage.setItem('laundryData', JSON.stringify(appData));
-        alert("데이터가 성공적으로 저장되었습니다!");
+        const newData = { ...currentParsedData, id: Date.now().toString() };
         
-        // Reset
-        document.getElementById('raw-input').value = '';
-        document.getElementById('parse-result').classList.add('hidden');
-        currentParsedData = null;
-        
-        // Update Filter Options
-        updateMonthFilters();
-        
-        // Switch to Dashboard
-        document.querySelector('.nav-links li[data-target="dashboard-view"]').click();
+        showLoading(true);
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'add', data: newData }),
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                }
+            });
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                appData.push(newData);
+                alert("데이터가 성공적으로 저장되었습니다!");
+                
+                // Reset
+                document.getElementById('raw-input').value = '';
+                document.getElementById('parse-result').classList.add('hidden');
+                currentParsedData = null;
+                
+                // Update Filter Options
+                updateMonthFilters();
+                
+                // Switch to Dashboard
+                document.querySelector('.nav-links li[data-target="dashboard-view"]').click();
+            } else {
+                alert("저장 실패: " + result.message);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("저장 중 네트워크 오류가 발생했습니다.");
+        } finally {
+            showLoading(false);
+        }
     }
 });
 
@@ -174,13 +224,34 @@ function renderTable() {
 
     // Delete handlers
     document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = parseInt(e.target.getAttribute('data-id'));
+        btn.addEventListener('click', async (e) => {
+            const id = e.target.getAttribute('data-id');
             if(confirm("이 항목을 삭제하시겠습니까?")) {
-                appData = appData.filter(d => d.id !== id);
-                localStorage.setItem('laundryData', JSON.stringify(appData));
-                renderTable();
-                updateMonthFilters();
+                showLoading(true);
+                try {
+                    const response = await fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'delete', id: id }),
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8'
+                        }
+                    });
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        appData = appData.filter(d => String(d.id) !== String(id));
+                        renderTable();
+                        updateMonthFilters();
+                        // 대시보드도 다시 렌더링되게 하려면: (현재 테이블 뷰에 있으므로 필터값 유지)
+                    } else {
+                        alert("삭제 실패: " + result.message);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("삭제 중 네트워크 오류가 발생했습니다.");
+                } finally {
+                    showLoading(false);
+                }
             }
         });
     });
@@ -417,20 +488,7 @@ document.getElementById('export-excel-btn').addEventListener('click', () => {
     XLSX.writeFile(workbook, `laundry_compensation_data_${filter}.xlsx`);
 });
 
-// === Clear All ===
-document.getElementById('clear-data-btn').addEventListener('click', () => {
-    if(confirm("정말로 모든 데이터를 초기화하시겠습니까? (복구할 수 없습니다)")) {
-        if(confirm("정말 확실합니까?")) {
-            appData = [];
-            localStorage.removeItem('laundryData');
-            updateMonthFilters();
-            renderTable();
-            renderDashboard();
-            alert("초기화 완료되었습니다.");
-        }
-    }
-});
+// === Clear All (제거됨 - 공용 DB이므로 개별 초기화 방지) ===
 
 // === Initial Load ===
-updateMonthFilters();
-renderDashboard();
+loadData();
