@@ -1,5 +1,5 @@
 // === Data Management ===
-const WEB_APP_URL = "https://script.google.com/a/macros/lifegoeson.kr/s/AKfycbxwJd21AxK_1duyM6QCzoriO7YVwpz2llRhkclTyR91A5G3SsEOfrsRg8RJ7lc_sxFW/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwJd21AxK_1duyM6QCzoriO7YVwpz2llRhkclTyR91A5G3SsEOfrsRg8RJ7lc_sxFW/exec";
 let appData = [];
 let currentParsedData = null;
 
