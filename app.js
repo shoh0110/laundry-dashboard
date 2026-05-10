@@ -289,13 +289,21 @@ function renderDashboard() {
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.font.family = 'Inter';
 
+    // Calculate percentages for labels
+    const totalReasons = Object.values(reasonsCount).reduce((a, b) => a + b, 0);
+    const reasonLabels = Object.keys(reasonsCount).map(key => {
+        const count = reasonsCount[key];
+        const percentage = ((count / totalReasons) * 100).toFixed(1);
+        return `${key} (${percentage}%)`;
+    });
+
     // 1. Reason Chart (Pie)
     const ctxReason = document.getElementById('reasonChart').getContext('2d');
     if(reasonChartInst) reasonChartInst.destroy();
     reasonChartInst = new Chart(ctxReason, {
         type: 'doughnut',
         data: {
-            labels: Object.keys(reasonsCount),
+            labels: reasonLabels,
             datasets: [{
                 data: Object.values(reasonsCount),
                 backgroundColor: THEME_COLORS,
@@ -315,10 +323,9 @@ function renderDashboard() {
                             if (label) {
                                 label += ': ';
                             }
-                            let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            let value = context.parsed;
-                            let percentage = ((value / total) * 100).toFixed(1) + '%';
-                            return label + percentage;
+                            // 툴팁에는 구체적인 건수를 표시 (범례에 이미 %가 있으므로)
+                            label += context.parsed + '건';
+                            return label;
                         }
                     }
                 }
