@@ -530,7 +530,7 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         if (overlappingPatterns.length > 0) {
             html += `<p style="margin: 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.5;">`;
             html += `👉 <strong>주요 원인 분석:</strong> 해당 카테고리 내에서 `;
-            const patternStrings = overlappingPatterns.map(p => `<strong style="color:#f472b6;">'${p[0]}' (${p[1]}건)</strong>`);
+            const patternStrings = overlappingPatterns.map(p => `<strong class="insight-pattern-link" data-reason="${reason}" data-pattern="${p[0]}" style="color:#f472b6; cursor:pointer; text-decoration:underline;">'${p[0]}' (${p[1]}건)</strong>`);
             html += patternStrings.join(", ") + " 이슈가 <strong>중복으로 발생</strong>한 것이 확인되었습니다. 이는 단발성 실수가 아닌 시스템/공정상의 취약점일 수 있으므로 근본적인 솔루션 검토가 필요합니다.";
             html += `</p>`;
         } else {
@@ -638,6 +638,81 @@ document.getElementById('export-excel-btn').addEventListener('click', () => {
     // Save the file
     XLSX.writeFile(workbook, `laundry_compensation_data_${filter}.xlsx`);
 });
+
+// === Insight Popup Event ===
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('.insight-pattern-link');
+    if (!target) return;
+    
+    const reason = target.getAttribute('data-reason');
+    const pattern = target.getAttribute('data-pattern');
+    
+    // get filtered data
+    const filter = document.getElementById('month-filter-dashboard').value;
+    const filteredData = filterDataByMonth(appData, filter);
+    
+    // find matching data
+    const reasonData = filteredData.filter(d => d.reason === reason && d.details);
+    const keywords = patternDict[reason][pattern] || [];
+    const matchedData = reasonData.filter(item => keywords.some(kw => item.details.includes(kw)));
+    
+    showInsightDetailsPopup(pattern, matchedData);
+});
+
+function showInsightDetailsPopup(patternName, dataList) {
+    let popup = document.getElementById('insight-popup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'insight-popup';
+        popup.className = 'modal-overlay hidden';
+        popup.innerHTML = `
+            <div class="modal-content glass-panel" style="max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h3 id="insight-popup-title" style="margin:0; font-size: 1.2rem; color: var(--accent-primary);"></h3>
+                    <button id="insight-popup-close" class="ghost-btn" style="padding: 0.5rem; font-size: 1.2rem;">✕</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>날짜</th>
+                                <th>바코드</th>
+                                <th>품목명</th>
+                                <th>상세내용</th>
+                            </tr>
+                        </thead>
+                        <tbody id="insight-popup-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(popup);
+        
+        document.getElementById('insight-popup-close').addEventListener('click', () => {
+            popup.classList.add('hidden');
+        });
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) popup.classList.add('hidden');
+        });
+    }
+    
+    document.getElementById('insight-popup-title').innerText = `'${patternName}' 관련 상세 데이터 (${dataList.length}건)`;
+    const tbody = document.getElementById('insight-popup-body');
+    tbody.innerHTML = '';
+    
+    dataList.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${new Date(item.date).toLocaleDateString()}</td>
+            <td>${item.barcode || '-'}</td>
+            <td>${item.item || '-'}</td>
+            <td style="white-space: pre-wrap; font-size: 0.85rem; text-align: left; max-width: 300px; line-height: 1.4;">${item.details || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    popup.classList.remove('hidden');
+}
 
 // === Clear All (제거됨 - 공용 DB이므로 개별 초기화 방지) ===
 
