@@ -458,11 +458,38 @@ function getTop(countObj) {
     return topKey ? { key: topKey, val: topVal } : null;
 }
 
+// 시스템/공정상의 중복 에러 패턴을 찾기 위한 사전
+const patternDict = {
+    "원단 손상": {
+        "벨크로(찍찍이) 마찰": ["벨크로", "찍찍이"],
+        "세탁 기계/부속품 이탈 문제": ["기계", "부속품 이탈", "부속품이 빠진", "세탁기 안 문제", "세탁기 내부", "빨려들어가", "빨려 들어가"],
+        "고온 건조로 인한 원단 변형": ["고온 건조", "고온건조", "녹음", "버블현상"],
+        "습기제거제 반응/이염": ["습기제거제"],
+        "수축 및 우글거림": ["수축", "우글우글", "흐물거림"]
+    },
+    "분실": {
+        "오배송 및 타 고객 혼입": ["오배송", "타 고객", "타고객", "바코드 오부착", "다른 고객님", "오인"],
+        "불명 리스트 및 미등록": ["미등록", "불명", "불명 리스트", "미출고", "반려", "등록 누락"],
+        "이동 중 누락": ["택배", "이동 중", "개별클리닝백"]
+    },
+    "수선미흡": {
+        "수선 오매칭 (다른 옷 수선)": ["오매칭", "오수선", "수선 오류", "바코드 오부착"]
+    },
+    "이염": {
+        "세탁기 내부 이염": ["세탁기 안 문제", "세탁기 문제", "세탁기 내부"],
+        "색올림 및 탈색": ["색올림", "탈색", "색빠짐", "물빠짐"]
+    },
+    "부속품 손상": {
+        "단추/지퍼 집중 파손": ["단추", "지퍼"],
+        "플라스틱 변형": ["플라스틱", "변형"]
+    }
+};
+
 function generateInsight(filteredData, reasonsCount, totalCount) {
     const sortedReasons = Object.keys(reasonsCount).sort((a,b) => reasonsCount[b] - reasonsCount[a]);
     if (sortedReasons.length === 0) return "분석할 데이터가 없습니다.";
     
-    let html = `<div style="margin-bottom: 1rem;">이번 기간 동안 접수된 총 <strong>${totalCount}건</strong>의 데이터를 분석한 결과입니다.</div>`;
+    let html = `<div style="margin-bottom: 1rem;">이번 기간 동안 접수된 총 <strong>${totalCount}건</strong>의 데이터를 분석하여 <strong>'시스템적 중복 원인'</strong>을 도출했습니다.</div>`;
     
     // 1위 ~ 3위까지만 추출
     const topN = Math.min(3, sortedReasons.length);
@@ -479,25 +506,40 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         html += `<div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border-left: 3px solid ${color};">`;
         html += `   <h4 style="margin: 0 0 0.5rem 0; color: ${color}; font-size: 1.05rem;">${i+1}위. ${reason} <span style="font-size:0.9rem; color:#94a3b8; font-weight:normal;">(${count}건 / ${pct}%)</span></h4>`;
         
-        // 해당 사유의 데이터 필터링
-        const reasonData = filteredData.filter(d => d.reason === reason && d.details && d.details.trim().length > 5);
+        const reasonData = filteredData.filter(d => d.reason === reason && d.details);
         
-        if (reasonData.length > 0) {
-            html += `<ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9rem; color: #cbd5e1; line-height: 1.5;">`;
-            
-            // 상세 내용이 긴(구체적인) 순서대로 정렬하여 최대 2개 추출
-            reasonData.sort((a, b) => b.details.length - a.details.length);
-            const casesToShow = Math.min(2, reasonData.length);
-            
-            for (let j = 0; j < casesToShow; j++) {
-                // 너무 긴 내용은 자르기
-                let text = reasonData[j].details.replace(/\n/g, ' ');
-                if (text.length > 100) text = text.substring(0, 100) + '...';
-                html += `<li style="margin-bottom: 0.3rem;">"${text}"</li>`;
+        // 패턴 분석 로직
+        let patternCounts = {};
+        let patternsDefined = patternDict[reason] || {};
+        
+        reasonData.forEach(item => {
+            let matched = false;
+            for (const [patternName, keywords] of Object.entries(patternsDefined)) {
+                if (keywords.some(kw => item.details.includes(kw))) {
+                    patternCounts[patternName] = (patternCounts[patternName] || 0) + 1;
+                    matched = true;
+                }
             }
-            html += `</ul>`;
+        });
+        
+        // 2건 이상 중복 발생한 패턴만 추출 (단발성 휴먼 에러 제외 목적)
+        const overlappingPatterns = Object.entries(patternCounts)
+            .filter(([name, cnt]) => cnt >= 2)
+            .sort((a, b) => b[1] - a[1]);
+            
+        if (overlappingPatterns.length > 0) {
+            html += `<p style="margin: 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.5;">`;
+            html += `👉 <strong>주요 원인 분석:</strong> 해당 카테고리 내에서 `;
+            const patternStrings = overlappingPatterns.map(p => `<strong style="color:#f472b6;">'${p[0]}' (${p[1]}건)</strong>`);
+            html += patternStrings.join(", ") + " 이슈가 <strong>중복으로 발생</strong>한 것이 확인되었습니다. 이는 단발성 실수가 아닌 시스템/공정상의 취약점일 수 있으므로 근본적인 솔루션 검토가 필요합니다.";
+            html += `</p>`;
         } else {
-            html += `<div style="font-size: 0.9rem; color: #64748b; padding-left: 0.5rem;">상세 내용이 작성된 사례가 없습니다.</div>`;
+            // 중복 패턴이 없을 경우
+            if (reasonData.length > 1) {
+                html += `<p style="margin: 0; font-size: 0.95rem; color: #94a3b8; line-height: 1.5;">👉 <strong>주요 원인 분석:</strong> 눈에 띄는 중복 패턴이 발견되지 않았습니다. 해당 건들은 시스템적 문제보다는 <strong>개별적인 단발성 원인(휴먼 에러 등)</strong>으로 발생했을 가능성이 높습니다.</p>`;
+            } else {
+                html += `<p style="margin: 0; font-size: 0.95rem; color: #94a3b8; line-height: 1.5;">👉 <strong>주요 원인 분석:</strong> 데이터 모수가 적어 중복 원인을 분석하기 어렵습니다.</p>`;
+            }
         }
         
         html += `</div>`;
