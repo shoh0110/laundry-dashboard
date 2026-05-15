@@ -462,39 +462,48 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
     const sortedReasons = Object.keys(reasonsCount).sort((a,b) => reasonsCount[b] - reasonsCount[a]);
     if (sortedReasons.length === 0) return "분석할 데이터가 없습니다.";
     
-    const top1 = sortedReasons[0];
-    const top1Pct = ((reasonsCount[top1] / totalCount) * 100).toFixed(1);
+    let html = `<div style="margin-bottom: 1rem;">이번 기간 동안 접수된 총 <strong>${totalCount}건</strong>의 데이터를 분석한 결과입니다.</div>`;
     
-    let html = `이번 기간 동안 접수된 총 <strong>${totalCount}건</strong> 중, <strong style="color: #60a5fa; font-size: 1.05rem;">[${top1}]</strong> 이슈가 ${top1Pct}%로 가장 높은 비중을 차지했습니다. `;
+    // 1위 ~ 3위까지만 추출
+    const topN = Math.min(3, sortedReasons.length);
+    const colors = ['#f43f5e', '#f59e0b', '#3b82f6']; // 1위(빨강), 2위(주황), 3위(파랑)
     
-    if (sortedReasons.length > 1) {
-        const top2 = sortedReasons[1];
-        const top2Pct = ((reasonsCount[top2] / totalCount) * 100).toFixed(1);
-        html += `그 다음으로는 <strong>[${top2}]</strong>(${top2Pct}%)가 뒤를 이었습니다.<br><br>`;
-    } else {
-        html += `<br><br>`;
-    }
+    html += `<div style="display: flex; flex-direction: column; gap: 1.2rem;">`;
 
-    // 1위 사유의 상세 내용 키워드 분석
-    const top1Data = filteredData.filter(d => d.reason === top1);
-    const detailsText = top1Data.map(d => d.details || "").join(" ");
-    
-    const words = detailsText.split(/\s+/);
-    const wordCounts = {};
-    const stopWords = ['안심케어', '안내', '보상', '이관', '드립니다', '진행', '이관드립니다.', '확인', '요청', '불가로', '경우', '후', '등', '수거', '세탁', '최초', '담당부서', '인입되어', '보상이관드립니다.', '해당', '시', '부분', '인해', '발생', '대해', '되어'];
-    
-    words.forEach(w => {
-        let cleanWord = w.replace(/[^가-힣a-zA-Z0-9]/g, '');
-        if (cleanWord.length >= 2 && !stopWords.includes(cleanWord)) {
-            wordCounts[cleanWord] = (wordCounts[cleanWord] || 0) + 1;
+    for (let i = 0; i < topN; i++) {
+        const reason = sortedReasons[i];
+        const count = reasonsCount[reason];
+        const pct = ((count / totalCount) * 100).toFixed(1);
+        const color = colors[i] || '#94a3b8';
+        
+        html += `<div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border-left: 3px solid ${color};">`;
+        html += `   <h4 style="margin: 0 0 0.5rem 0; color: ${color}; font-size: 1.05rem;">${i+1}위. ${reason} <span style="font-size:0.9rem; color:#94a3b8; font-weight:normal;">(${count}건 / ${pct}%)</span></h4>`;
+        
+        // 해당 사유의 데이터 필터링
+        const reasonData = filteredData.filter(d => d.reason === reason && d.details && d.details.trim().length > 5);
+        
+        if (reasonData.length > 0) {
+            html += `<ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9rem; color: #cbd5e1; line-height: 1.5;">`;
+            
+            // 상세 내용이 긴(구체적인) 순서대로 정렬하여 최대 2개 추출
+            reasonData.sort((a, b) => b.details.length - a.details.length);
+            const casesToShow = Math.min(2, reasonData.length);
+            
+            for (let j = 0; j < casesToShow; j++) {
+                // 너무 긴 내용은 자르기
+                let text = reasonData[j].details.replace(/\n/g, ' ');
+                if (text.length > 100) text = text.substring(0, 100) + '...';
+                html += `<li style="margin-bottom: 0.3rem;">"${text}"</li>`;
+            }
+            html += `</ul>`;
+        } else {
+            html += `<div style="font-size: 0.9rem; color: #64748b; padding-left: 0.5rem;">상세 내용이 작성된 사례가 없습니다.</div>`;
         }
-    });
-    
-    const sortedWords = Object.keys(wordCounts).sort((a,b) => wordCounts[b] - wordCounts[a]).slice(0, 3);
-    
-    if (sortedWords.length > 0) {
-        html += `특히 가장 많이 발생한 <strong>${top1}</strong>의 상세 내용을 분석해 본 결과, <b style="color: #f472b6;">'${sortedWords.join("', '")}'</b> 와(과) 관련된 사례가 빈번하게 언급되었습니다. <br><span style="color: #94a3b8; font-size: 0.85rem;">👉 현장 작업 시 해당 부분에 대한 각별한 주의와 사전 점검이 필요해 보입니다.</span>`;
+        
+        html += `</div>`;
     }
+    
+    html += `</div>`;
 
     return html;
 }
