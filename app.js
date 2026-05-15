@@ -68,13 +68,57 @@ document.querySelectorAll('.nav-links li').forEach(li => {
 });
 
 // === Parsers ===
+const reasonKeywordMap = {
+    "분실": ["분실", "오배송", "없어짐", "못찾", "불명", "미출고"],
+    "원단 손상": ["원단 손상", "원단손상", "찢어짐", "구멍", "올나감", "스크래치", "올풀림", "까짐", "찢김", "녹음", "버블현상", "헤짐", "마모"],
+    "부속품 손상": ["부속품 손상", "단추", "지퍼", "끈", "장식", "벨크로", "부자재", "탈락", "부속품탈락", "부속품 파손", "부속품손상", "플라스틱"],
+    "파손": ["파손", "깨짐", "부러짐", "박살"],
+    "이염": ["이염", "물듦", "색빠짐", "변색", "탈색", "오염", "얼룩", "물빠짐", "색올림"],
+    "수선미흡": ["수선미흡", "수선", "오매칭", "오수선", "수선오류", "기장"],
+    "수축": ["수축", "줄어듦", "늘어남", "변형", "사이즈"],
+    "오배송": ["오배송", "타고객", "타 고객", "바코드 오부착", "바코드오부착"],
+    "기타": ["기타"]
+};
+
+function autoCategorizeReason(parsedReason, fullText) {
+    if (!parsedReason) parsedReason = "";
+    const cleanReason = parsedReason.replace(/\s+/g, '');
+    
+    // 1. '-보상 접수 사유:' 에 적힌 텍스트를 우선 분석
+    if (cleanReason) {
+        for (const [category, keywords] of Object.entries(reasonKeywordMap)) {
+            if (cleanReason === category.replace(/\s+/g)) return category;
+            for (const keyword of keywords) {
+                if (cleanReason.includes(keyword.replace(/\s+/g))) {
+                    return category;
+                }
+            }
+        }
+    }
+    
+    // 2. 만약 사유에 정확한 키워드가 없으면, 전체 본문(상세 내용 등)에서 키워드 유추
+    for (const [category, keywords] of Object.entries(reasonKeywordMap)) {
+        for (const keyword of keywords) {
+            if (fullText.includes(keyword)) {
+                return category;
+            }
+        }
+    }
+    
+    return "기타"; // 일치하는 것이 없으면 기본값
+}
+
 document.getElementById('parse-btn').addEventListener('click', () => {
     const raw = document.getElementById('raw-input').value;
     if(!raw.trim()) return alert("텍스트를 입력해주세요.");
 
     try {
         const parsed = parseText(raw);
-        parsed.reason = document.getElementById('reason-select').value;
+        
+        // 자동 카테고리 분류 로직 적용
+        const matchedCategory = autoCategorizeReason(parsed.reason, raw);
+        document.getElementById('reason-select').value = matchedCategory;
+        parsed.reason = matchedCategory; // 표준 카테고리로 덮어쓰기
         
         if(!parsed.item) {
             alert("입력 양식을 정확히 인식할 수 없습니다. 양식을 확인해주세요.");
@@ -212,7 +256,7 @@ function renderTable() {
         const dateStr = new Date(item.date).toLocaleDateString();
         tr.innerHTML = `
             <td>${dateStr}</td>
-            <td>${item.memberCard}</td>
+            <td>${item.barcode}</td>
             <td class="td-reason">${item.reason}</td>
             <td class="td-item">${item.item}</td>
             <td>${item.route}</td>
