@@ -15,7 +15,6 @@ async function loadData() {
     showLoading(true);
     try {
         const response = await fetch(WEB_APP_URL);
-        // CORS/권한 에러 발생 시 response.json()이 안될 수 있음
         const result = await response.json();
         if (result.status === 'success') {
             appData = result.data || [];
@@ -37,7 +36,6 @@ async function loadData() {
 // Chart Instances
 let reasonChartInst = null;
 let itemChartInst = null;
-let routeChartInst = null;
 
 const THEME_COLORS = [
     'rgba(59, 130, 246, 0.8)', // blue
@@ -51,17 +49,14 @@ const THEME_COLORS = [
 // === Navigation ===
 document.querySelectorAll('.nav-links li').forEach(li => {
     li.addEventListener('click', (e) => {
-        // Remove active class from all
         document.querySelectorAll('.nav-links li').forEach(n => n.classList.remove('active'));
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         
-        // Add active class to clicked
         const target = e.currentTarget;
         target.classList.add('active');
         const viewId = target.getAttribute('data-target');
         document.getElementById(viewId).classList.add('active');
 
-        // Render data if needed
         if(viewId === 'dashboard-view') renderDashboard();
         if(viewId === 'table-view') renderTable();
     });
@@ -84,28 +79,21 @@ function autoCategorizeReason(parsedReason, fullText) {
     if (!parsedReason) parsedReason = "";
     const cleanReason = parsedReason.replace(/\s+/g, '');
     
-    // 1. '-보상 접수 사유:' 에 적힌 텍스트를 우선 분석
     if (cleanReason) {
         for (const [category, keywords] of Object.entries(reasonKeywordMap)) {
-            if (cleanReason === category.replace(/\s+/g)) return category;
+            if (cleanReason === category.replace(/\s+/g, '')) return category;
             for (const keyword of keywords) {
-                if (cleanReason.includes(keyword.replace(/\s+/g))) {
-                    return category;
-                }
+                if (cleanReason.includes(keyword.replace(/\s+/g, ''))) return category;
             }
         }
     }
     
-    // 2. 만약 사유에 정확한 키워드가 없으면, 전체 본문(상세 내용 등)에서 키워드 유추
     for (const [category, keywords] of Object.entries(reasonKeywordMap)) {
         for (const keyword of keywords) {
-            if (fullText.includes(keyword)) {
-                return category;
-            }
+            if (fullText.includes(keyword)) return category;
         }
     }
-    
-    return "기타"; // 일치하는 것이 없으면 기본값
+    return "기타";
 }
 
 document.getElementById('parse-btn').addEventListener('click', () => {
@@ -114,11 +102,9 @@ document.getElementById('parse-btn').addEventListener('click', () => {
 
     try {
         const parsed = parseText(raw);
-        
-        // 자동 카테고리 분류 로직 적용
         const matchedCategory = autoCategorizeReason(parsed.reason, raw);
         document.getElementById('reason-select').value = matchedCategory;
-        parsed.reason = matchedCategory; // 표준 카테고리로 덮어쓰기
+        parsed.reason = matchedCategory; 
         
         if(!parsed.item) {
             alert("입력 양식을 정확히 인식할 수 없습니다. 양식을 확인해주세요.");
@@ -146,14 +132,11 @@ function parseText(text) {
     };
 
     const lines = text.split('\n').map(l => l.trim());
-    
     for(let i=0; i<lines.length; i++) {
         const line = lines[i];
-        
         if(line.startsWith('-회원카드:')) result.memberCard = line.replace('-회원카드:', '').trim();
         else if(line.startsWith('-보상 접수 사유:')) result.reason = line.replace('-보상 접수 사유:', '').trim();
         else if(line.startsWith('-최초 수거일 바코드 및 품목명:')) {
-            // Next line has the value
             if(lines[i+1] && !lines[i+1].startsWith('-')) {
                 const parts = lines[i+1].split('/');
                 result.barcode = parts[0] ? parts[0].trim() : '';
@@ -162,17 +145,12 @@ function parseText(text) {
         }
         else if(line.startsWith('-고객 선안내 여부:')) result.preNotified = line.replace('-고객 선안내 여부:', '').trim();
         else if(line.startsWith('-보상 접수 경로 :') || line.startsWith('-보상 접수 경로:')) {
-            if(lines[i+1] && !lines[i+1].startsWith('-')) {
-                result.route = lines[i+1].trim();
-            }
+            if(lines[i+1] && !lines[i+1].startsWith('-')) result.route = lines[i+1].trim();
         }
         else if(line.startsWith('-접수자:')) result.receiver = line.replace('-접수자:', '').trim();
         else if(line.startsWith('-상세 내용:')) {
-            // Read rest of the lines
             let details = [];
-            for(let j=i+1; j<lines.length; j++) {
-                details.push(lines[j]);
-            }
+            for(let j=i+1; j<lines.length; j++) details.push(lines[j]);
             result.details = details.join('\n').trim();
             break;
         }
@@ -197,37 +175,27 @@ function showParsedResult(data) {
 document.getElementById('confirm-save-btn').addEventListener('click', async () => {
     if(currentParsedData) {
         const newData = { ...currentParsedData, id: Date.now().toString() };
-        
         showLoading(true);
         try {
             const response = await fetch(WEB_APP_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: 'add', data: newData }),
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
-                }
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
             });
             const result = await response.json();
             
             if (result.status === 'success') {
                 appData.push(newData);
                 alert("데이터가 성공적으로 저장되었습니다!");
-                
-                // Reset
                 document.getElementById('raw-input').value = '';
                 document.getElementById('parse-result').classList.add('hidden');
                 currentParsedData = null;
-                
-                // Update Filter Options
                 updateMonthFilters();
-                
-                // Switch to Dashboard
                 document.querySelector('.nav-links li[data-target="dashboard-view"]').click();
             } else {
                 alert("저장 실패: " + result.message);
             }
         } catch (err) {
-            console.error(err);
             alert("저장 중 네트워크 오류가 발생했습니다.");
         } finally {
             showLoading(false);
@@ -247,8 +215,6 @@ function renderTable() {
     tbody.innerHTML = '';
     
     let filteredData = filterDataByMonth(appData, filter);
-    
-    // Sort by latest
     filteredData.sort((a,b) => b.id - a.id);
 
     filteredData.forEach(item => {
@@ -266,7 +232,6 @@ function renderTable() {
         tbody.appendChild(tr);
     });
 
-    // Delete handlers
     document.querySelectorAll('.btn-delete').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.target.getAttribute('data-id');
@@ -276,9 +241,7 @@ function renderTable() {
                     const response = await fetch(WEB_APP_URL, {
                         method: 'POST',
                         body: JSON.stringify({ action: 'delete', id: id }),
-                        headers: {
-                            'Content-Type': 'text/plain;charset=utf-8'
-                        }
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                     });
                     const result = await response.json();
                     
@@ -286,12 +249,10 @@ function renderTable() {
                         appData = appData.filter(d => String(d.id) !== String(id));
                         renderTable();
                         updateMonthFilters();
-                        // 대시보드도 다시 렌더링되게 하려면: (현재 테이블 뷰에 있으므로 필터값 유지)
                     } else {
                         alert("삭제 실패: " + result.message);
                     }
                 } catch (err) {
-                    console.error(err);
                     alert("삭제 중 네트워크 오류가 발생했습니다.");
                 } finally {
                     showLoading(false);
@@ -306,7 +267,6 @@ function renderDashboard() {
     const filter = document.getElementById('month-filter-dashboard').value;
     const filteredData = filterDataByMonth(appData, filter);
     
-    // Total
     document.getElementById('total-cases').innerText = filteredData.length + " 건";
 
     if(filteredData.length === 0) {
@@ -316,40 +276,32 @@ function renderDashboard() {
         if (insightBox) insightBox.innerHTML = "해당 기간의 데이터가 없습니다.";
         if(reasonChartInst) reasonChartInst.destroy();
         if(itemChartInst) itemChartInst.destroy();
-        if(routeChartInst) routeChartInst.destroy();
         return;
     }
 
-    // Process Data
     const reasonsCount = countBy(filteredData, 'reason');
     const itemsCount = countBy(filteredData, 'item');
-    const routeCount = countBy(filteredData, 'route');
 
-    // Top Stats
     const topReason = getTop(reasonsCount);
     const topItem = getTop(itemsCount);
     document.getElementById('top-reason').innerText = topReason ? topReason.key : "-";
     document.getElementById('top-item').innerText = topItem ? topItem.key : "-";
 
-    // Generate Monthly Insight
     const insightBox = document.getElementById('monthly-insight-text');
-    if (insightBox) {
-        insightBox.innerHTML = generateInsight(filteredData, reasonsCount, filteredData.length);
-    }
+    if (insightBox) insightBox.innerHTML = generateInsight(filteredData, reasonsCount, filteredData.length);
 
-    // Draw Charts
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.font.family = 'Inter';
 
-    // Calculate percentages for labels
-    const totalReasons = Object.values(reasonsCount).reduce((a, b) => a + b, 0);
-    const reasonLabels = Object.keys(reasonsCount).map(key => {
-        const count = reasonsCount[key];
+    // Reason Chart
+    const sortedReasons = Object.entries(reasonsCount).sort((a, b) => b[1] - a[1]);
+    const totalReasons = sortedReasons.reduce((sum, item) => sum + item[1], 0);
+    const reasonLabels = sortedReasons.map(([key, count]) => {
         const percentage = ((count / totalReasons) * 100).toFixed(1);
         return `${key} (${percentage}%)`;
     });
+    const reasonData = sortedReasons.map(item => item[1]);
 
-    // 1. Reason Chart (Pie)
     const ctxReason = document.getElementById('reasonChart').getContext('2d');
     if(reasonChartInst) reasonChartInst.destroy();
     reasonChartInst = new Chart(ctxReason, {
@@ -357,7 +309,7 @@ function renderDashboard() {
         data: {
             labels: reasonLabels,
             datasets: [{
-                data: Object.values(reasonsCount),
+                data: reasonData,
                 backgroundColor: THEME_COLORS,
                 borderWidth: 0,
                 hoverOffset: 4
@@ -371,13 +323,7 @@ function renderDashboard() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            let label = context.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            // 툴팁에는 구체적인 건수를 표시 (범례에 이미 %가 있으므로)
-                            label += context.parsed + '건';
-                            return label;
+                            return context.label.split(' (')[0] + ': ' + context.parsed + '건';
                         }
                     }
                 }
@@ -385,59 +331,64 @@ function renderDashboard() {
         }
     });
 
-    // 2. Item Chart (Bar)
+    // Item Chart
+    const sortedItems = Object.entries(itemsCount).sort((a, b) => b[1] - a[1]);
+    const totalItems = sortedItems.reduce((sum, item) => sum + item[1], 0);
+    const itemLabels = sortedItems.map(item => item[0]);
+    const itemCounts = sortedItems.map(item => item[1]);
+    const itemPercentages = sortedItems.map(item => ((item[1] / totalItems) * 100).toFixed(1));
+
     const ctxItem = document.getElementById('itemChart').getContext('2d');
     if(itemChartInst) itemChartInst.destroy();
     itemChartInst = new Chart(ctxItem, {
         type: 'bar',
         data: {
-            labels: Object.keys(itemsCount),
-            datasets: [{
-                label: '건수',
-                data: Object.values(itemsCount),
-                backgroundColor: 'rgba(52, 211, 153, 0.8)',
-                borderRadius: 4
-            }]
+            labels: itemLabels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: '백분율(%)',
+                    data: itemPercentages,
+                    borderColor: 'rgba(245, 158, 11, 1)',
+                    backgroundColor: 'rgba(245, 158, 11, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    yAxisID: 'y1'
+                },
+                {
+                    type: 'bar',
+                    label: '건수',
+                    data: itemCounts,
+                    backgroundColor: 'rgba(52, 211, 153, 0.8)',
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                x: { grid: { display: false } }
+                x: { 
+                    grid: { display: false },
+                    ticks: { autoSkip: false, maxRotation: 90, minRotation: 90 }
+                },
+                y: { 
+                    type: 'linear', display: true, position: 'left', beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: '건수' }
+                },
+                y1: {
+                    type: 'linear', display: true, position: 'right', beginAtZero: true,
+                    grid: { drawOnChartArea: false }, title: { display: true, text: '백분율 (%)' },
+                    ticks: { callback: function(value) { return value + '%'; } }
+                }
             },
-            plugins: { legend: { display: false } }
-        }
-    });
-
-    // 3. Route Chart (Bar)
-    const ctxRoute = document.getElementById('routeChart').getContext('2d');
-    if(routeChartInst) routeChartInst.destroy();
-    routeChartInst = new Chart(ctxRoute, {
-        type: 'bar',
-        data: {
-            labels: Object.keys(routeCount),
-            datasets: [{
-                label: '건수',
-                data: Object.values(routeCount),
-                backgroundColor: 'rgba(129, 140, 248, 0.8)',
-                borderRadius: 4
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: { grid: { display: false } }
-            },
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: true, position: 'top' } }
         }
     });
 }
 
-// === Utilities ===
+// === Insight Utilities ===
 function countBy(arr, key) {
     return arr.reduce((acc, curr) => {
         let val = curr[key] || '기타';
@@ -458,30 +409,41 @@ function getTop(countObj) {
     return topKey ? { key: topKey, val: topVal } : null;
 }
 
-// 시스템/공정상의 중복 에러 패턴을 찾기 위한 사전
 const patternDict = {
     "원단 손상": {
-        "벨크로(찍찍이) 마찰": ["벨크로", "찍찍이"],
-        "세탁 기계/부속품 이탈 문제": ["기계", "부속품 이탈", "부속품이 빠진", "세탁기 안 문제", "세탁기 내부", "빨려들어가", "빨려 들어가"],
-        "고온 건조로 인한 원단 변형": ["고온 건조", "고온건조", "녹음", "버블현상"],
-        "습기제거제 반응/이염": ["습기제거제"],
-        "수축 및 우글거림": ["수축", "우글우글", "흐물거림"]
+        "벨크로(찍찍이) 마찰 손상": ["벨크로", "찍찍이"],
+        "세탁기/기계 내부 끼임 및 빨려들어감": ["기계", "부속품 이탈", "부속품이 빠진", "세탁기 안", "세탁기 내부", "빨려", "기기 내부"],
+        "고온 건조/다림질로 인한 원단 녹음 및 변형": ["고온 건조", "고온건조", "녹음", "버블현상", "고온 다림질", "다려"],
+        "원단 찢김 및 구멍 발생": ["찢김", "찢어짐", "구멍", "올나감", "올풀림", "까짐", "스크래치", "해짐"],
+        "로고/프린팅 손상 및 벗겨짐": ["프린팅", "로고", "라벨", "탭 파손", "벗겨짐"]
     },
     "분실": {
-        "오배송 및 타 고객 혼입": ["오배송", "타 고객", "타고객", "바코드 오부착", "다른 고객님", "오인"],
-        "불명 리스트 및 미등록": ["미등록", "불명", "불명 리스트", "미출고", "반려", "등록 누락"],
-        "이동 중 누락": ["택배", "이동 중", "개별클리닝백"]
+        "오배송 및 타 고객 세탁물 혼입": ["오배송", "타 고객", "타고객", "다른 고객", "오인", "뒤바뀌어"],
+        "바코드 오부착 및 전산 등록 누락": ["바코드", "오부착", "미등록", "등록 누락", "등록누락", "불명", "이력 확인되지 않아"],
+        "부속품(끈/단추 등) 분실": ["부속품 분실", "끈 분실", "단추 분실", "미확보"]
     },
     "수선미흡": {
-        "수선 오매칭 (다른 옷 수선)": ["오매칭", "오수선", "수선 오류", "바코드 오부착"]
+        "수선 오매칭 및 오수선": ["오매칭", "오수선", "수선 오류", "수선오류", "잘못 수선"],
+        "기장/길이 조절 미흡": ["기장", "길이", "짧아", "차이나"]
     },
     "이염": {
-        "세탁기 내부 이염": ["세탁기 안 문제", "세탁기 문제", "세탁기 내부"],
-        "색올림 및 탈색": ["색올림", "탈색", "색빠짐", "물빠짐"]
+        "세탁 공정 중 타 의류/세탁기 이염": ["세탁기 안", "세탁기 문제", "세탁기 내부", "오염 발생"],
+        "의류 자체 탈색 및 물빠짐/색빠짐": ["탈색", "색올림 케어 불가", "색 빠짐", "색빠짐", "물빠짐", "변색"]
     },
     "부속품 손상": {
-        "단추/지퍼 집중 파손": ["단추", "지퍼"],
-        "플라스틱 변형": ["플라스틱", "변형"]
+        "단추/지퍼/부속품 파손": ["단추", "지퍼", "끈", "탈락", "파손"],
+        "내부 플라스틱 및 앞코 변형": ["플라스틱", "앞코", "변형"]
+    },
+    "수축": {
+        "고온/공정으로 인한 의류 사이즈 수축": ["수축", "줄어듦", "사이즈"],
+        "의류 늘어남 및 원단 변형": ["늘어남", "변형", "우글", "흐물거림"]
+    },
+    "오배송": {
+        "타 고객 세탁물 오패킹 및 뒤바뀜": ["오배송", "오패킹", "타인", "뒤바뀌어", "오부착"]
+    },
+    "기타": {
+        "안심케어/재케어 진행 후 최종 복구 불가": ["복구 불가", "원복 불가", "케어 불가", "원상복구 되지 않고"],
+        "배송 지연 및 서비스 불만족": ["배송지연", "배송 지연", "불만", "시간 지체"]
     }
 };
 
@@ -489,11 +451,10 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
     const sortedReasons = Object.keys(reasonsCount).sort((a,b) => reasonsCount[b] - reasonsCount[a]);
     if (sortedReasons.length === 0) return "분석할 데이터가 없습니다.";
     
-    let html = `<div style="margin-bottom: 1rem;">이번 기간 동안 접수된 총 <strong>${totalCount}건</strong>의 데이터를 분석하여 <strong>'시스템적 중복 원인'</strong>을 도출했습니다.</div>`;
+    let html = `<div style="margin-bottom: 1rem;">이번 기간 동안 접수된 총 <strong>${totalCount}건</strong>의 데이터를 분석하여 <strong>'보상 발생 원인'</strong>을 도출했습니다.</div>`;
     
-    // 1위 ~ 3위까지만 추출
     const topN = Math.min(3, sortedReasons.length);
-    const colors = ['#f43f5e', '#f59e0b', '#3b82f6']; // 1위(빨강), 2위(주황), 3위(파랑)
+    const colors = ['#f43f5e', '#f59e0b', '#3b82f6'];
     
     html += `<div style="display: flex; flex-direction: column; gap: 1.2rem;">`;
 
@@ -508,154 +469,70 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         
         const reasonData = filteredData.filter(d => d.reason === reason && d.details);
         
-        // 패턴 분석 로직
         let patternCounts = {};
         let patternsDefined = patternDict[reason] || {};
         
         reasonData.forEach(item => {
-            let matched = false;
             for (const [patternName, keywords] of Object.entries(patternsDefined)) {
                 if (keywords.some(kw => item.details.includes(kw))) {
                     patternCounts[patternName] = (patternCounts[patternName] || 0) + 1;
-                    matched = true;
                 }
             }
         });
         
-        // 2건 이상 중복 발생한 패턴만 추출 (단발성 휴먼 에러 제외 목적)
-        const overlappingPatterns = Object.entries(patternCounts)
-            .filter(([name, cnt]) => cnt >= 2)
-            .sort((a, b) => b[1] - a[1]);
+        let overlappingPatterns = Object.entries(patternCounts).sort((a, b) => b[1] - a[1]);
             
-        if (overlappingPatterns.length > 0) {
-            html += `<p style="margin: 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.5;">`;
-            html += `👉 <strong>주요 원인 분석:</strong> 해당 카테고리 내에서 `;
-            const patternStrings = overlappingPatterns.map(p => `<strong class="insight-pattern-link" data-reason="${reason}" data-pattern="${p[0]}" style="color:#f472b6; cursor:pointer; text-decoration:underline;">'${p[0]}' (${p[1]}건)</strong>`);
-            html += patternStrings.join(", ") + " 이슈가 <strong>중복으로 발생</strong>한 것이 확인되었습니다. 이는 단발성 실수가 아닌 시스템/공정상의 취약점일 수 있으므로 근본적인 솔루션 검토가 필요합니다.";
-            html += `</p>`;
-        } else {
-            // 중복 패턴이 없을 경우
-            if (reasonData.length > 1) {
-                html += `<p style="margin: 0; font-size: 0.95rem; color: #94a3b8; line-height: 1.5;">👉 <strong>주요 원인 분석:</strong> 눈에 띄는 중복 패턴이 발견되지 않았습니다. 해당 건들은 시스템적 문제보다는 <strong>개별적인 단발성 원인(휴먼 에러 등)</strong>으로 발생했을 가능성이 높습니다.</p>`;
-            } else {
-                html += `<p style="margin: 0; font-size: 0.95rem; color: #94a3b8; line-height: 1.5;">👉 <strong>주요 원인 분석:</strong> 데이터 모수가 적어 중복 원인을 분석하기 어렵습니다.</p>`;
-            }
+        if (overlappingPatterns.length === 0) {
+            const dynamicKeywords = ["원복 불가", "복구 불가", "케어 불가", "찢김", "이염", "오배송", "분실", "수축", "변형", "오매칭", "파손", "단추", "지퍼", "배송지연", "얼룩"];
+            dynamicKeywords.forEach(kw => {
+                reasonData.forEach(item => {
+                    if (item.details && item.details.includes(kw)) {
+                        patternCounts[kw] = (patternCounts[kw] || 0) + 1;
+                    }
+                });
+            });
+            overlappingPatterns = Object.entries(patternCounts).sort((a, b) => b[1] - a[1]);
         }
         
+        if (overlappingPatterns.length > 0) {
+            html += `<p style="margin: 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.5;">`;
+            html += `👉 <strong>주요 원인 분석:</strong> `;
+            const patternStrings = overlappingPatterns.slice(0, 2).map(p => `<strong class="insight-pattern-link" data-reason="${reason}" data-pattern="${p[0]}" style="color:#f472b6; cursor:pointer; text-decoration:underline;">'${p[0]}' (${p[1]}건)</strong>`);
+            html += patternStrings.join(", ") + " 관련 이슈가 핵심 보상 원인으로 분석되었습니다. (클릭 시 해당 내역 모아보기)";
+            html += `</p>`;
+        } else {
+            const sampleTexts = reasonData.slice(0, 2).map(item => {
+                const cleanText = item.details.replace(/\n/g, ' ').substring(0, 35) + '...';
+                return `[${cleanText}]`;
+            });
+            html += `<p style="margin: 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.5;">`;
+            html += `👉 <strong>실제 접수 내용 요약:</strong> 이번 달 주요 원인은 주로 ${sampleTexts.join(', ')} 등의 사유인 것으로 파악됩니다.`;
+            html += `</p>`;
+        }
         html += `</div>`;
     }
-    
     html += `</div>`;
-
     return html;
 }
 
-// === Filters ===
-function updateMonthFilters() {
-    const months = new Set();
-    appData.forEach(item => {
-        if(item.date) {
-            const d = new Date(item.date);
-            const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
-            months.add(monthStr);
-        }
-    });
-    
-    const sortedMonths = Array.from(months).sort().reverse();
-    
-    const fTable = document.getElementById('month-filter-table');
-    const fDash = document.getElementById('month-filter-dashboard');
-    
-    const currTableVal = fTable.value;
-    const currDashVal = fDash.value;
-
-    const buildOptions = () => {
-        let html = '<option value="all">전체 기간</option>';
-        sortedMonths.forEach(m => html += `<option value="${m}">${m}</option>`);
-        return html;
-    };
-
-    fTable.innerHTML = buildOptions();
-    fDash.innerHTML = buildOptions();
-
-    if(sortedMonths.includes(currTableVal)) fTable.value = currTableVal;
-    if(sortedMonths.includes(currDashVal)) fDash.value = currDashVal;
-}
-
-function filterDataByMonth(data, monthStr) {
-    if(monthStr === 'all') return data;
-    return data.filter(item => {
-        if(!item.date) return false;
-        const d = new Date(item.date);
-        const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
-        return m === monthStr;
-    });
-}
-
-// Events for filters
-document.getElementById('month-filter-dashboard').addEventListener('change', renderDashboard);
-document.getElementById('month-filter-table').addEventListener('change', renderTable);
-
-// === Excel Export ===
-document.getElementById('export-excel-btn').addEventListener('click', () => {
-    if(appData.length === 0) return alert("데이터가 없습니다.");
-    
-    const filter = document.getElementById('month-filter-table').value;
-    const filteredData = filterDataByMonth(appData, filter);
-
-    // Prepare data for Excel
-    const excelData = filteredData.map(row => ({
-        "등록일": new Date(row.date).toLocaleDateString(),
-        "회원카드": row.memberCard,
-        "보상사유": row.reason,
-        "바코드": row.barcode,
-        "품목": row.item,
-        "선안내여부": row.preNotified,
-        "접수경로": row.route,
-        "접수자": row.receiver,
-        "상세내용": row.details
-    }));
-
-    // Create a new workbook and add the worksheet
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "보상데이터");
-
-    // Auto-adjust column widths (simple approach)
-    const wscols = [
-        {wch: 12}, // 등록일
-        {wch: 15}, // 회원카드
-        {wch: 25}, // 보상사유
-        {wch: 15}, // 바코드
-        {wch: 15}, // 품목
-        {wch: 15}, // 선안내여부
-        {wch: 25}, // 접수경로
-        {wch: 20}, // 접수자
-        {wch: 50}  // 상세내용
-    ];
-    worksheet['!cols'] = wscols;
-
-    // Save the file
-    XLSX.writeFile(workbook, `laundry_compensation_data_${filter}.xlsx`);
-});
-
-// === Insight Popup Event ===
 document.addEventListener('click', (e) => {
     const target = e.target.closest('.insight-pattern-link');
     if (!target) return;
     
     const reason = target.getAttribute('data-reason');
     const pattern = target.getAttribute('data-pattern');
-    
-    // get filtered data
     const filter = document.getElementById('month-filter-dashboard').value;
     const filteredData = filterDataByMonth(appData, filter);
-    
-    // find matching data
     const reasonData = filteredData.filter(d => d.reason === reason && d.details);
-    const keywords = patternDict[reason][pattern] || [];
-    const matchedData = reasonData.filter(item => keywords.some(kw => item.details.includes(kw)));
     
+    let keywords = [];
+    if (patternDict[reason] && patternDict[reason][pattern]) {
+        keywords = patternDict[reason][pattern];
+    } else {
+        keywords = [pattern];
+    }
+    
+    const matchedData = reasonData.filter(item => keywords.some(kw => item.details.includes(kw)));
     showInsightDetailsPopup(pattern, matchedData);
 });
 
@@ -687,13 +564,8 @@ function showInsightDetailsPopup(patternName, dataList) {
             </div>
         `;
         document.body.appendChild(popup);
-        
-        document.getElementById('insight-popup-close').addEventListener('click', () => {
-            popup.classList.add('hidden');
-        });
-        popup.addEventListener('click', (e) => {
-            if (e.target === popup) popup.classList.add('hidden');
-        });
+        document.getElementById('insight-popup-close').addEventListener('click', () => popup.classList.add('hidden'));
+        popup.addEventListener('click', (e) => { if (e.target === popup) popup.classList.add('hidden'); });
     }
     
     document.getElementById('insight-popup-title').innerText = `'${patternName}' 관련 상세 데이터 (${dataList.length}건)`;
@@ -710,11 +582,17 @@ function showInsightDetailsPopup(patternName, dataList) {
         `;
         tbody.appendChild(tr);
     });
-    
     popup.classList.remove('hidden');
 }
 
-// === Clear All (제거됨 - 공용 DB이므로 개별 초기화 방지) ===
-
-// === Initial Load ===
-loadData();
+// === Filters ===
+function updateMonthFilters() {
+    const months = new Set();
+    appData.forEach(item => {
+        if(item.date) {
+            const d = new Date(item.date);
+            const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+            months.add(monthStr);
+        }
+    });
+    const sortedMonths = Array.from
