@@ -419,8 +419,10 @@ function getTop(countObj) {
     return topKey ? { key: topKey, val: topVal } : null;
 }
 
+// ✨ 수정: 일반적인 "세탁 후 손상" 그룹을 하나로 묶기 위한 패턴 추가
 const patternDict = {
     "원단 손상": {
+        "세탁 공정 중 발생한 원단 손상 (일반)": ["세탁 후 손상", "세탁후 손상", "세탁 과정 손상", "세탁 중 손상", "세탁손상"],
         "벨크로(찍찍이) 마찰 손상": ["벨크로", "찍찍이"],
         "세탁기/기계 내부 끼임 및 빨려들어감": ["기계", "부속품 이탈", "부속품이 빠진", "세탁기 안", "세탁기 내부", "빨려", "기기 내부"],
         "고온 건조/다림질로 인한 원단 녹음 및 변형": ["고온 건조", "고온건조", "녹음", "버블현상", "고온 다림질", "다려"],
@@ -457,6 +459,7 @@ const patternDict = {
     }
 };
 
+// ✨ 수정: 뒤에 붙는 "안심케어건 입니다", "발견" 등의 꼬리말을 강력하게 삭제
 function extractCoreIssue(details) {
     if (!details) return "상세 내용 없음";
     const lines = details.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -479,23 +482,30 @@ function extractCoreIssue(details) {
     if (!targetLine && lines.length > 0) targetLine = lines[0].replace('<군포>', '').replace('군포 /', '');
     
     let core = targetLine.replace(/^[-ㅁ*•\s]+/, '').trim();
-    core = core.replace(/으로 인해? 문의글 인입되어 안심케어 진행되었습니다\.?/, '')
-               .replace(/으로 인입되어 안심케어 안내\.?/, '')
-               .replace(/으로 인입된 안심케어 의류\.?/, '')
-               .replace(/발생하여 복구 불가 및 고객 출고 미동의로 보상 접수 합니다\.?/, '')
-               .replace(/발생으로 복구 불가한 부분으로 보상 접수 합니다\.?/, '')
-               .replace(/확인되어 보상 접수 진행 합니다\.?/, '')
-               .replace(/된 부분 확인 됩니다\.?/, '')
-               .replace(/으로 확인되어 보상 접수 합니다\.?/, '')
-               .replace(/으로 확인되어 부득이 보상 이관 드립니다\.?/, '')
-               .replace(/원복 불가로 보상 이관 드립니다\.?/, '')
-               .replace(/원복 불가로 보상이관드립니다\.?/, '')
-               .replace(/되어 보상 접수 합니다\.?/, '')
-               .replace(/되어 부득이 보상 이관 드립니다\.?/, '');
+    
+    // 불필요한 단어 싹둑
+    core = core.replace(/해당 세탁물 /g, '')
+               .replace(/으로 안심케어건 입니다\.?/g, '')
+               .replace(/안심케어건 입니다\.?/g, '')
+               .replace(/발견/g, '')
+               .replace(/으로 인해? 문의글 인입되어 안심케어 진행되었습니다\.?/g, '')
+               .replace(/으로 인입되어 안심케어 안내\.?/g, '')
+               .replace(/으로 인입된 안심케어 의류\.?/g, '')
+               .replace(/발생하여 복구 불가 및 고객 출고 미동의로 보상 접수 합니다\.?/g, '')
+               .replace(/발생으로 복구 불가한 부분으로 보상 접수 합니다\.?/g, '')
+               .replace(/확인되어 보상 접수 진행 합니다\.?/g, '')
+               .replace(/된 부분 확인 됩니다\.?/g, '')
+               .replace(/으로 확인되어 보상 접수 합니다\.?/g, '')
+               .replace(/으로 확인되어 부득이 보상 이관 드립니다\.?/g, '')
+               .replace(/원복 불가로 보상 이관 드립니다\.?/g, '')
+               .replace(/원복 불가로 보상이관드립니다\.?/g, '')
+               .replace(/되어 보상 접수 합니다\.?/g, '')
+               .replace(/되어 부득이 보상 이관 드립니다\.?/g, '')
+               .replace(/으로 보상 접수 합니다\.?/g, '');
+               
     return core.substring(0, 55).trim() || "상세 사유 확인";
 }
 
-// 📌 [단락 1] 조치 권고사항 (+주요 중복 패턴 건수 부활) / [단락 2] 세부 데이터
 function generateInsight(filteredData, reasonsCount, totalCount) {
     const sortedReasons = Object.keys(reasonsCount).sort((a,b) => reasonsCount[b] - reasonsCount[a]);
     if (sortedReasons.length === 0) return "분석할 데이터가 없습니다.";
@@ -518,12 +528,10 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         const pct = ((count / totalCount) * 100).toFixed(1);
         const color = colors[i] || '#94a3b8';
 
-        // 해당 사유의 데이터 모으기
         const reasonData = filteredData.filter(d => d.reason === reason);
         let patternCountsText = {};
         let patternsDefinedText = patternDict[reason] || {};
 
-        // 중복 패턴 카운팅 (단락 1에 표시하기 위함)
         reasonData.forEach(item => {
             for (const [patternName, keywords] of Object.entries(patternsDefinedText)) {
                 if (keywords.some(kw => item.details && item.details.includes(kw))) {
@@ -554,7 +562,6 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         html += `       <div style="padding-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05);">`;
         html += `           <div style="color: ${color}; font-weight: 600; margin-bottom: 0.6rem; font-size: 1.05rem;">[${i+1}위] ${reason} <span style="font-size:0.9rem; font-weight:normal; color:#94a3b8;">(${count}건 / ${pct}%)</span></div>`;
         
-        // 📌 여기에 과거의 "고온건조로인한 원단손상 8건" 같은 패턴 카운팅 부활
         if (overlappingPatterns.length > 0) {
             const patternStrings = overlappingPatterns.map(p => `<strong style="color:#f472b6;">'${p[0]}' (${p[1]}건)</strong>`);
             html += `           <div style="color: #e2e8f0; font-size: 0.95rem; line-height: 1.5; margin-bottom: 0.4rem;">🔍 <strong>주요 중복 패턴:</strong> ${patternStrings.join(", ")} 등이 집중적으로 확인되었습니다.</div>`;
