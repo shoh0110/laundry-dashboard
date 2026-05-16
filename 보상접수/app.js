@@ -1,3 +1,13 @@
+아! 처음에 제가 올려주신 app.js 코드를 보았을 때 작성되어 있던 "중복 발생 패턴 요약 (시스템/공정상의 취약점 여부 판단)" 문구를 말씀하시는 거군요!
+
+보고서를 보시는 분들 입장에서는 "1. 짧은 요약 문장"을 먼저 쓱 읽고, 더 궁금하면 그 아래 "2. 상세 품목 집계 리스트"를 보는 것이 가장 완벽한 흐름이 되죠! 정말 보고서의 정석 같은 구성입니다.
+
+말씀하신 대로 기존의 훌륭했던 요약 문장(단발성 실수인지, 공정 취약점인지 판단하는 문구)을 그대로 위에 살려두고, 팝업 링크 속성만 뺀 상태로 인쇄용으로 만들었습니다. 그리고 바로 그 밑에 품목별 상세 분석 박스가 들어가게 완벽히 합쳤습니다.
+
+이번에도 에러가 나지 않도록 오른쪽 위 Copy code 버튼을 누르시거나, 안쪽을 클릭하고 Ctrl + A -> Ctrl + C 로 안전하게 복사해주세요!
+
+💡 최종 통합 완성본 app.js (전체 덮어쓰기)
+JavaScript
 // === Data Management ===
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwJd21AxK_1duyM6QCzoriO7YVwpz2llRhkclTyR91A5G3SsEOfrsRg8RJ7lc_sxFW/exec";
 let appData = [];
@@ -515,34 +525,43 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         html += `<div style="background: rgba(30, 41, 59, 0.4); padding: 1.5rem; border-radius: 8px; border-left: 4px solid ${color};">`;
         html += `   <h4 style="margin: 0 0 1rem 0; color: ${color}; font-size: 1.15rem; font-weight: 600;">[순위 ${i+1}위] ${reason} <span style="font-size:0.9rem; color:#94a3b8; font-weight:normal;">(${count}건 접수 / 비율 ${pct}%)</span></h4>`;
         
-        let advice = "";
-        if (reason.includes('이염') || reason.includes('오염')) {
-            advice = "가장 높은 비중을 차지하는 주요 이슈입니다. 세탁 전/후 검수 프로세스 강화 및 특정 오염원에 대한 케어 레시피 점검이 필요합니다.";
-        } else if (reason.includes('원단 손상') || reason.includes('파손')) {
-            advice = "고객 배상으로 직결되는 중요 항목입니다. 세탁망 사용 기준 확인 및 기계 내부/고온 건조 공정의 퀄리티 체킹을 강화해 주세요.";
-        } else if (reason.includes('수축')) {
-            advice = "의류 변형 관련 불만이 지속적으로 발생합니다. 건조 공정 시간이나 온도 세팅, 세탁 라벨 확인 프로세스 점검이 필요합니다.";
-        } else if (reason.includes('분실') || reason.includes('오배송')) {
-            advice = "치명적인 서비스 오류입니다. 입출고 바코드 스캔, 패킹 프로세스 점검 및 작업자 교육이 시급합니다.";
-        } else if (reason.includes('수선미흡')) {
-            advice = "수선 오매칭 또는 기장 조절 오류가 발생하고 있습니다. 수선 공정 작업자 재교육 및 오더 재확인 절차를 권장합니다.";
-        } else if (reason.includes('부속품 손상')) {
-            advice = "세탁 전 부속품(단추/지퍼 등) 상태 사전 확인 및 보호 덮개/세탁망 사용 등의 선제적 조치가 필요합니다.";
-        } else {
-            advice = "해당 유형이 지속적으로 접수되고 있으므로 세부 내용 확인 및 향후 데이터 변동 추이를 주의 깊게 모니터링해야 합니다.";
-        }
+        const reasonData = filteredData.filter(d => d.reason === reason && d.details);
 
-        html += `   <p style="margin: 0 0 1.2rem 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.6;">`;
-        html += `       💡 <strong>운영 조치 권고사항:</strong> ${advice}`;
-        html += `   </p>`;
-
-        const reasonData = filteredData.filter(d => d.reason === reason);
-        let groupedIssues = {};
-        let patternsDefined = patternDict[reason] || {};
+        // --- 1. 원본 버전 (중복 패턴 요약 분석 텍스트) ---
+        let patternCountsText = {};
+        let patternsDefinedText = patternDict[reason] || {};
 
         reasonData.forEach(item => {
+            for (const [patternName, keywords] of Object.entries(patternsDefinedText)) {
+                if (keywords.some(kw => item.details.includes(kw))) {
+                    patternCountsText[patternName] = (patternCountsText[patternName] || 0) + 1;
+                }
+            }
+        });
+
+        const overlappingPatterns = Object.entries(patternCountsText)
+            .filter(([name, cnt]) => cnt >= 2)
+            .sort((a, b) => b[1] - a[1]);
+
+        html += `   <p style="margin: 0 0 1.2rem 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.6;">`;
+        if (overlappingPatterns.length > 0) {
+            html += `👉 <strong>주요 원인 분석:</strong> 해당 카테고리 내에서 `;
+            const patternStrings = overlappingPatterns.map(p => `<strong style="color:#f472b6;">'${p[0]}' (${p[1]}건)</strong>`);
+            html += patternStrings.join(", ") + " 이슈가 <strong>중복으로 발생</strong>한 것이 확인되었습니다. 이는 단발성 실수가 아닌 시스템/공정상의 취약점일 수 있으므로 근본적인 솔루션 검토가 필요합니다.";
+        } else {
+            if (reasonData.length > 1) {
+                html += `👉 <strong>주요 원인 분석:</strong> 눈에 띄는 중복 패턴이 발견되지 않았습니다. 해당 건들은 시스템적 문제보다는 <strong>개별적인 단발성 원인(휴먼 에러 등)</strong>으로 발생했을 가능성이 높습니다.`;
+            } else {
+                html += `👉 <strong>주요 원인 분석:</strong> 데이터 모수가 적어 중복 원인을 분석하기 어렵습니다.`;
+            }
+        }
+        html += `   </p>`;
+
+        // --- 2. 세부 버전 (상세 발생 원인 및 품목 그룹화 리스트) ---
+        let groupedIssues = {};
+        reasonData.forEach(item => {
             let matchedPattern = null;
-            for (const [patternName, keywords] of Object.entries(patternsDefined)) {
+            for (const [patternName, keywords] of Object.entries(patternsDefinedText)) {
                 if (keywords.some(kw => item.details.includes(kw))) {
                     matchedPattern = patternName;
                     break;
@@ -561,7 +580,7 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         const sortedGroups = Object.entries(groupedIssues).sort((a, b) => b[1].total - a[1].total);
 
         html += `   <div style="background: rgba(15, 23, 42, 0.5); padding: 1.2rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">`;
-        html += `       <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 0.8rem; font-size: 0.95rem;">📑 상세 발생 원인 및 품목 집계</div>`;
+        html += `       <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 0.8rem; font-size: 0.95rem;">📑 세부 발생 원인 및 품목 집계</div>`;
         html += `       <ul style="list-style: none; padding: 0; margin: 0; color: #cbd5e1; font-size: 0.9rem; line-height: 1.8;">`;
 
         sortedGroups.forEach(([groupName, data]) => {
