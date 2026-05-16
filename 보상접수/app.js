@@ -495,63 +495,73 @@ function extractCoreIssue(details) {
     return core.substring(0, 55).trim() || "상세 사유 확인";
 }
 
+// 📌 [단락 1] 조치 권고사항 / [단락 2] 세부 데이터 로 완벽 분리
 function generateInsight(filteredData, reasonsCount, totalCount) {
     const sortedReasons = Object.keys(reasonsCount).sort((a,b) => reasonsCount[b] - reasonsCount[a]);
     if (sortedReasons.length === 0) return "분석할 데이터가 없습니다.";
     
-    let html = `<div style="margin-bottom: 1.5rem; font-size: 1.05rem; color: #f8fafc;">이번 기간 접수된 <strong>총 ${totalCount}건</strong>의 데이터를 분석한 <strong>'종합 운영 인사이트 및 상세 요약'</strong>입니다. (보고서 인쇄 최적화)</div>`;
+    let html = `<div style="margin-bottom: 2rem; font-size: 1.05rem; color: #f8fafc;">이번 기간 접수된 <strong>총 ${totalCount}건</strong>의 데이터를 분석한 <strong>'종합 운영 인사이트 및 상세 요약'</strong>입니다. (보고서 인쇄 최적화)</div>`;
     
     const topN = Math.min(3, sortedReasons.length);
     const colors = ['#f43f5e', '#f59e0b', '#3b82f6'];
-    
-    html += `<div style="display: flex; flex-direction: column; gap: 2rem;">`;
+
+    // ==========================================
+    // [단락 1] 주요 원인 분석 및 조치 권고사항
+    // ==========================================
+    html += `<div style="background: rgba(30, 41, 59, 0.4); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #8b5cf6; margin-bottom: 2rem;">`;
+    html += `   <h3 style="margin: 0 0 1.2rem 0; color: #a78bfa; font-size: 1.2rem; font-weight: 600;">💡 주요 원인 분석 및 조치 권고사항</h3>`;
+    html += `   <div style="display: flex; flex-direction: column; gap: 1rem;">`;
 
     for (let i = 0; i < topN; i++) {
         const reason = sortedReasons[i];
         const count = reasonsCount[reason];
         const pct = ((count / totalCount) * 100).toFixed(1);
         const color = colors[i] || '#94a3b8';
-        
-        html += `<div style="background: rgba(30, 41, 59, 0.4); padding: 1.5rem; border-radius: 8px; border-left: 4px solid ${color};">`;
-        html += `   <h4 style="margin: 0 0 1rem 0; color: ${color}; font-size: 1.15rem; font-weight: 600;">[순위 ${i+1}위] ${reason} <span style="font-size:0.9rem; color:#94a3b8; font-weight:normal;">(${count}건 접수 / 비율 ${pct}%)</span></h4>`;
-        
-        const reasonData = filteredData.filter(d => d.reason === reason && d.details);
 
-        // --- 1. 원본 버전 (중복 패턴 요약 분석 텍스트) ---
-        let patternCountsText = {};
-        let patternsDefinedText = patternDict[reason] || {};
-
-        reasonData.forEach(item => {
-            for (const [patternName, keywords] of Object.entries(patternsDefinedText)) {
-                if (keywords.some(kw => item.details.includes(kw))) {
-                    patternCountsText[patternName] = (patternCountsText[patternName] || 0) + 1;
-                }
-            }
-        });
-
-        const overlappingPatterns = Object.entries(patternCountsText)
-            .filter(([name, cnt]) => cnt >= 2)
-            .sort((a, b) => b[1] - a[1]);
-
-        html += `   <p style="margin: 0 0 1.2rem 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.6;">`;
-        if (overlappingPatterns.length > 0) {
-            html += `👉 <strong>주요 원인 분석:</strong> 해당 카테고리 내에서 `;
-            const patternStrings = overlappingPatterns.map(p => `<strong style="color:#f472b6;">'${p[0]}' (${p[1]}건)</strong>`);
-            html += patternStrings.join(", ") + " 이슈가 <strong>중복으로 발생</strong>한 것이 확인되었습니다. 이는 단발성 실수가 아닌 시스템/공정상의 취약점일 수 있으므로 근본적인 솔루션 검토가 필요합니다.";
+        let advice = "";
+        if (reason.includes('이염') || reason.includes('오염')) {
+            advice = "세탁 전/후 검수 프로세스 강화 및 특정 오염원에 대한 케어 레시피 점검이 필요합니다.";
+        } else if (reason.includes('원단 손상') || reason.includes('파손')) {
+            advice = "고객 배상으로 직결되는 중요 항목입니다. 세탁망 사용 기준 확인 및 기계 내부/고온 건조 공정의 퀄리티 체킹을 강화해 주세요.";
+        } else if (reason.includes('수축')) {
+            advice = "의류 변형 관련 불만이 지속적으로 발생합니다. 건조 공정 시간이나 온도 세팅, 세탁 라벨 확인 프로세스 점검이 필요합니다.";
+        } else if (reason.includes('분실') || reason.includes('오배송')) {
+            advice = "치명적인 서비스 오류입니다. 입출고 바코드 스캔, 패킹 프로세스 점검 및 작업자 교육이 시급합니다.";
+        } else if (reason.includes('수선미흡')) {
+            advice = "수선 오매칭 또는 기장 조절 오류가 발생하고 있습니다. 수선 공정 작업자 재교육 및 오더 재확인 절차를 권장합니다.";
+        } else if (reason.includes('부속품 손상')) {
+            advice = "세탁 전 부속품(단추/지퍼 등) 상태 사전 확인 및 보호 덮개/세탁망 사용 등의 선제적 조치가 필요합니다.";
         } else {
-            if (reasonData.length > 1) {
-                html += `👉 <strong>주요 원인 분석:</strong> 눈에 띄는 중복 패턴이 발견되지 않았습니다. 해당 건들은 시스템적 문제보다는 <strong>개별적인 단발성 원인(휴먼 에러 등)</strong>으로 발생했을 가능성이 높습니다.`;
-            } else {
-                html += `👉 <strong>주요 원인 분석:</strong> 데이터 모수가 적어 중복 원인을 분석하기 어렵습니다.`;
-            }
+            advice = "해당 유형이 지속적으로 접수되고 있으므로 세부 내용 확인 및 향후 데이터 변동 추이를 주의 깊게 모니터링해야 합니다.";
         }
-        html += `   </p>`;
 
-        // --- 2. 세부 버전 (상세 발생 원인 및 품목 그룹화 리스트) ---
+        html += `       <div style="padding-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05);">`;
+        html += `           <div style="color: ${color}; font-weight: 600; margin-bottom: 0.4rem;">[${i+1}위] ${reason} <span style="font-size:0.9rem; font-weight:normal; color:#94a3b8;">(${count}건 / ${pct}%)</span></div>`;
+        html += `           <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">${advice}</div>`;
+        html += `       </div>`;
+    }
+    html += `   </div>`;
+    html += `</div>`;
+
+
+    // ==========================================
+    // [단락 2] 세부 발생 원인 및 품목 집계
+    // ==========================================
+    html += `<div style="background: rgba(30, 41, 59, 0.4); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #10b981;">`;
+    html += `   <h3 style="margin: 0 0 1.2rem 0; color: #34d399; font-size: 1.2rem; font-weight: 600;">📑 세부 발생 원인 및 품목 집계</h3>`;
+    html += `   <div style="display: flex; flex-direction: column; gap: 1.5rem;">`;
+
+    for (let i = 0; i < topN; i++) {
+        const reason = sortedReasons[i];
+        const color = colors[i] || '#94a3b8';
+        const reasonData = filteredData.filter(d => d.reason === reason);
+
         let groupedIssues = {};
+        let patternsDefined = patternDict[reason] || {};
+
         reasonData.forEach(item => {
             let matchedPattern = null;
-            for (const [patternName, keywords] of Object.entries(patternsDefinedText)) {
+            for (const [patternName, keywords] of Object.entries(patternsDefined)) {
                 if (keywords.some(kw => item.details.includes(kw))) {
                     matchedPattern = patternName;
                     break;
@@ -569,9 +579,9 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
 
         const sortedGroups = Object.entries(groupedIssues).sort((a, b) => b[1].total - a[1].total);
 
-        html += `   <div style="background: rgba(15, 23, 42, 0.5); padding: 1.2rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">`;
-        html += `       <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 0.8rem; font-size: 0.95rem;">📑 세부 발생 원인 및 품목 집계</div>`;
-        html += `       <ul style="list-style: none; padding: 0; margin: 0; color: #cbd5e1; font-size: 0.9rem; line-height: 1.8;">`;
+        html += `       <div style="background: rgba(15, 23, 42, 0.5); padding: 1.2rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">`;
+        html += `           <div style="font-weight: 600; color: ${color}; margin-bottom: 0.8rem; font-size: 1rem;">[${i+1}위] ${reason}</div>`;
+        html += `           <ul style="list-style: none; padding: 0; margin: 0; color: #cbd5e1; font-size: 0.9rem; line-height: 1.8;">`;
 
         sortedGroups.forEach(([groupName, data]) => {
             let itemStrings = [];
@@ -581,18 +591,19 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
             });
             let itemSummary = itemStrings.join(', ');
 
-            html += `       <li style="margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.02);">`;
-            html += `           <span style="color: #f8fafc; font-weight: 500;">📌 ${groupName}</span> `;
-            html += `           <span style="color: #34d399;">(${itemSummary})</span>`;
-            html += `       </li>`;
+            html += `               <li style="margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.02);">`;
+            html += `                   <span style="color: #f8fafc; font-weight: 500;">📌 ${groupName}</span> `;
+            html += `                   <span style="color: #94a3b8;">(${itemSummary})</span>`;
+            html += `               </li>`;
         });
 
-        html += `       </ul>`;
-        html += `   </div>`; 
-        html += `</div>`; 
+        html += `           </ul>`;
+        html += `       </div>`;
     }
-    
+
+    html += `   </div>`;
     html += `</div>`;
+
     return html;
 }
 
