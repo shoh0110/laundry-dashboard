@@ -1,3 +1,11 @@
+이전 버전의 그 디테일한 분석 문구가 확실히 실무에서 문제의 핵심을 짚어내기 좋았죠!
+
+말씀하신 피드백을 완벽하게 반영하여, [단락 1]에 "🔍 주요 중복 패턴 (ex: 고온 건조/다림질로 인한 원단 녹음 및 변형 8건)"이 먼저 눈에 띄게 표시되고, 그 밑에 "💡 운영 조치 권고사항"이 자연스럽게 이어지도록 구조를 더욱 탄탄하게 짰습니다.
+
+이번에도 복사하실 때 ! 같은 기호가 섞여 들어가지 않도록 조심하시면서, 내 컴퓨터의 app.js를 전체 선택(Ctrl + A) 후 싹 지우시고 아래 코드로 덮어쓰기 해주세요!
+
+💡 최종 진화형 app.js (전체 덮어쓰기)
+JavaScript
 // === Data Management ===
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwJd21AxK_1duyM6QCzoriO7YVwpz2llRhkclTyR91A5G3SsEOfrsRg8RJ7lc_sxFW/exec";
 let appData = [];
@@ -495,7 +503,7 @@ function extractCoreIssue(details) {
     return core.substring(0, 55).trim() || "상세 사유 확인";
 }
 
-// 📌 [단락 1] 조치 권고사항 / [단락 2] 세부 데이터 로 완벽 분리
+// 📌 [단락 1] 조치 권고사항 (+주요 중복 패턴 건수 부활) / [단락 2] 세부 데이터
 function generateInsight(filteredData, reasonsCount, totalCount) {
     const sortedReasons = Object.keys(reasonsCount).sort((a,b) => reasonsCount[b] - reasonsCount[a]);
     if (sortedReasons.length === 0) return "분석할 데이터가 없습니다.";
@@ -518,6 +526,22 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         const pct = ((count / totalCount) * 100).toFixed(1);
         const color = colors[i] || '#94a3b8';
 
+        // 해당 사유의 데이터 모으기
+        const reasonData = filteredData.filter(d => d.reason === reason);
+        let patternCountsText = {};
+        let patternsDefinedText = patternDict[reason] || {};
+
+        // 중복 패턴 카운팅 (단락 1에 표시하기 위함)
+        reasonData.forEach(item => {
+            for (const [patternName, keywords] of Object.entries(patternsDefinedText)) {
+                if (keywords.some(kw => item.details && item.details.includes(kw))) {
+                    patternCountsText[patternName] = (patternCountsText[patternName] || 0) + 1;
+                }
+            }
+        });
+
+        const overlappingPatterns = Object.entries(patternCountsText).sort((a, b) => b[1] - a[1]);
+
         let advice = "";
         if (reason.includes('이염') || reason.includes('오염')) {
             advice = "세탁 전/후 검수 프로세스 강화 및 특정 오염원에 대한 케어 레시피 점검이 필요합니다.";
@@ -536,8 +560,15 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
         }
 
         html += `       <div style="padding-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05);">`;
-        html += `           <div style="color: ${color}; font-weight: 600; margin-bottom: 0.4rem;">[${i+1}위] ${reason} <span style="font-size:0.9rem; font-weight:normal; color:#94a3b8;">(${count}건 / ${pct}%)</span></div>`;
-        html += `           <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">${advice}</div>`;
+        html += `           <div style="color: ${color}; font-weight: 600; margin-bottom: 0.6rem; font-size: 1.05rem;">[${i+1}위] ${reason} <span style="font-size:0.9rem; font-weight:normal; color:#94a3b8;">(${count}건 / ${pct}%)</span></div>`;
+        
+        // 📌 여기에 과거의 "고온건조로인한 원단손상 8건" 같은 패턴 카운팅 부활
+        if (overlappingPatterns.length > 0) {
+            const patternStrings = overlappingPatterns.map(p => `<strong style="color:#f472b6;">'${p[0]}' (${p[1]}건)</strong>`);
+            html += `           <div style="color: #e2e8f0; font-size: 0.95rem; line-height: 1.5; margin-bottom: 0.4rem;">🔍 <strong>주요 중복 패턴:</strong> ${patternStrings.join(", ")} 등이 집중적으로 확인되었습니다.</div>`;
+        }
+
+        html += `           <div style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">💡 <strong>운영 조치 권고사항:</strong> ${advice}</div>`;
         html += `       </div>`;
     }
     html += `   </div>`;
