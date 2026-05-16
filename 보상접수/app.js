@@ -267,7 +267,6 @@ function renderDashboard() {
     const filter = document.getElementById('month-filter-dashboard').value;
     const filteredData = filterDataByMonth(appData, filter);
     
-    // 선택한 기간에 따라 대시보드 대제목을 동적으로 변경
     const titleElement = document.querySelector('#dashboard-view .view-header h1');
     if (titleElement) {
         if (filter === 'all') {
@@ -306,7 +305,6 @@ function renderDashboard() {
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.font.family = 'Inter';
 
-    // Reason Chart
     const sortedReasons = Object.entries(reasonsCount).sort((a, b) => b[1] - a[1]);
     const totalReasons = sortedReasons.reduce((sum, item) => sum + item[1], 0);
     const reasonLabels = sortedReasons.map(([key, count]) => {
@@ -344,9 +342,318 @@ function renderDashboard() {
         }
     });
 
-    // Item Chart
     const sortedItems = Object.entries(itemsCount).sort((a, b) => b[1] - a[1]);
     const totalItems = sortedItems.reduce((sum, item) => sum + item[1], 0);
     const itemLabels = sortedItems.map(item => item[0]);
     const itemCounts = sortedItems.map(item => item[1]);
-    const itemPercentages = sortedItems.map(item => ((item[1] / totalItems) *
+    const itemPercentages = sortedItems.map(item => ((item[1] / totalItems) * 100).toFixed(1));
+
+    const ctxItem = document.getElementById('itemChart').getContext('2d');
+    if(itemChartInst) itemChartInst.destroy();
+    itemChartInst = new Chart(ctxItem, {
+        type: 'bar',
+        data: {
+            labels: itemLabels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: '백분율(%)',
+                    data: itemPercentages,
+                    borderColor: 'rgba(245, 158, 11, 1)',
+                    backgroundColor: 'rgba(245, 158, 11, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    yAxisID: 'y1'
+                },
+                {
+                    type: 'bar',
+                    label: '건수',
+                    data: itemCounts,
+                    backgroundColor: 'rgba(52, 211, 153, 0.8)',
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    grid: { display: false },
+                    ticks: { autoSkip: false, maxRotation: 90, minRotation: 90 }
+                },
+                y: { 
+                    type: 'linear', display: true, position: 'left', beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: '건수' }
+                },
+                y1: {
+                    type: 'linear', display: true, position: 'right', beginAtZero: true,
+                    grid: { drawOnChartArea: false }, title: { display: true, text: '백분율 (%)' },
+                    ticks: { callback: function(value) { return value + '%'; } }
+                }
+            },
+            plugins: { legend: { display: true, position: 'top' } }
+        }
+    });
+}
+
+// === Insight Utilities ===
+function countBy(arr, key) {
+    return arr.reduce((acc, curr) => {
+        let val = curr[key] || '기타';
+        acc[val] = (acc[val] || 0) + 1;
+        return acc;
+    }, {});
+}
+
+function getTop(countObj) {
+    let topKey = null;
+    let topVal = 0;
+    for(let k in countObj) {
+        if(countObj[k] > topVal) {
+            topVal = countObj[k];
+            topKey = k;
+        }
+    }
+    return topKey ? { key: topKey, val: topVal } : null;
+}
+
+const patternDict = {
+    "원단 손상": {
+        "벨크로(찍찍이) 마찰 손상": ["벨크로", "찍찍이"],
+        "세탁기/기계 내부 끼임 및 빨려들어감": ["기계", "부속품 이탈", "부속품이 빠진", "세탁기 안", "세탁기 내부", "빨려", "기기 내부"],
+        "고온 건조/다림질로 인한 원단 녹음 및 변형": ["고온 건조", "고온건조", "녹음", "버블현상", "고온 다림질", "다려"],
+        "원단 찢김 및 구멍 발생": ["찢김", "찢어짐", "구멍", "올나감", "올풀림", "까짐", "스크래치", "해짐"],
+        "로고/프린팅 손상 및 벗겨짐": ["프린팅", "로고", "라벨", "탭 파손", "벗겨짐"]
+    },
+    "분실": {
+        "오배송 및 타 고객 세탁물 혼입": ["오배송", "타 고객", "타고객", "다른 고객", "오인", "뒤바뀌어"],
+        "바코드 오부착 및 전산 등록 누락": ["바코드", "오부착", "미등록", "등록 누락", "등록누락", "불명", "이력 확인되지 않아"],
+        "부속품(끈/단추 등) 분실": ["부속품 분실", "끈 분실", "단추 분실", "미확보"]
+    },
+    "수선미흡": {
+        "수선 오매칭 및 오수선": ["오매칭", "오수선", "수선 오류", "수선오류", "잘못 수선"],
+        "기장/길이 조절 미흡": ["기장", "길이", "짧아", "차이나"]
+    },
+    "이염": {
+        "세탁 공정 중 타 의류/세탁기 이염": ["세탁기 안", "세탁기 문제", "세탁기 내부", "오염 발생"],
+        "의류 자체 탈색 및 물빠짐/색빠짐": ["탈색", "색올림 케어 불가", "색 빠짐", "색빠짐", "물빠짐", "변색"]
+    },
+    "부속품 손상": {
+        "단추/지퍼/부속품 파손": ["단추", "지퍼", "끈", "탈락", "파손"],
+        "내부 플라스틱 및 앞코 변형": ["플라스틱", "앞코", "변형"]
+    },
+    "수축": {
+        "고온/공정으로 인한 의류 사이즈 수축": ["수축", "줄어듦", "사이즈"],
+        "의류 늘어남 및 원단 변형": ["늘어남", "변형", "우글", "흐물거림"]
+    },
+    "오배송": {
+        "타 고객 세탁물 오패킹 및 뒤바뀜": ["오배송", "오패킹", "타인", "뒤바뀌어", "오부착"]
+    },
+    "기타": {
+        "안심케어/재케어 진행 후 최종 복구 불가": ["복구 불가", "원복 불가", "케어 불가", "원상복구 되지 않고"],
+        "배송 지연 및 서비스 불만족": ["배송지연", "배송 지연", "불만", "시간 지체"]
+    }
+};
+
+function extractCoreIssue(details) {
+    if (!details) return "상세 내용 없음";
+    const lines = details.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    let targetLine = "";
+    for (let line of lines) {
+        if (line.includes('내용 :') || line.includes('내용:')) continue;
+        if (line.startsWith('-') && (line.includes('세탁') || line.includes('손상') || line.includes('얼룩') || line.includes('오염') || line.includes('찢') || line.includes('수선') || line.includes('분실') || line.includes('수축') || line.includes('물빠짐')) ) {
+            targetLine = line; break;
+        }
+    }
+    if (!targetLine) {
+        for (let line of lines) {
+            let clean = line.replace('<군포>', '').replace('군포 /', '').replace(/^[-ㅁ*•\s]+/, '').trim();
+            if (!clean || clean.includes('신청일') || clean.includes('바코드번호') || clean.includes('수량 :')) continue;
+            if (clean.includes('손상') || clean.includes('분실') || clean.includes('찢') || clean.includes('오염') || clean.includes('얼룩') || clean.includes('이염') || clean.includes('수축') || clean.includes('오수선') || clean.includes('오매칭') || clean.includes('늘어남') || clean.includes('물빠짐') || clean.includes('우글')) {
+                targetLine = clean; break;
+            }
+        }
+    }
+    if (!targetLine && lines.length > 0) targetLine = lines[0].replace('<군포>', '').replace('군포 /', '');
+    
+    let core = targetLine.replace(/^[-ㅁ*•\s]+/, '').trim();
+    core = core.replace(/으로 인해? 문의글 인입되어 안심케어 진행되었습니다\.?/, '')
+               .replace(/으로 인입되어 안심케어 안내\.?/, '')
+               .replace(/으로 인입된 안심케어 의류\.?/, '')
+               .replace(/발생하여 복구 불가 및 고객 출고 미동의로 보상 접수 합니다\.?/, '')
+               .replace(/발생으로 복구 불가한 부분으로 보상 접수 합니다\.?/, '')
+               .replace(/확인되어 보상 접수 진행 합니다\.?/, '')
+               .replace(/된 부분 확인 됩니다\.?/, '')
+               .replace(/으로 확인되어 보상 접수 합니다\.?/, '')
+               .replace(/으로 확인되어 부득이 보상 이관 드립니다\.?/, '')
+               .replace(/원복 불가로 보상 이관 드립니다\.?/, '')
+               .replace(/원복 불가로 보상이관드립니다\.?/, '')
+               .replace(/되어 보상 접수 합니다\.?/, '')
+               .replace(/되어 부득이 보상 이관 드립니다\.?/, '');
+    return core.substring(0, 55).trim() || "상세 사유 확인";
+}
+
+function generateInsight(filteredData, reasonsCount, totalCount) {
+    const sortedReasons = Object.keys(reasonsCount).sort((a,b) => reasonsCount[b] - reasonsCount[a]);
+    if (sortedReasons.length === 0) return "분석할 데이터가 없습니다.";
+    
+    let html = `<div style="margin-bottom: 1.5rem; font-size: 1.05rem; color: #f8fafc;">이번 기간 접수된 <strong>총 ${totalCount}건</strong>의 데이터를 분석한 <strong>'종합 운영 인사이트 및 상세 요약'</strong>입니다. (보고서 인쇄 최적화)</div>`;
+    
+    const topN = Math.min(3, sortedReasons.length);
+    const colors = ['#f43f5e', '#f59e0b', '#3b82f6'];
+    
+    html += `<div style="display: flex; flex-direction: column; gap: 2rem;">`;
+
+    for (let i = 0; i < topN; i++) {
+        const reason = sortedReasons[i];
+        const count = reasonsCount[reason];
+        const pct = ((count / totalCount) * 100).toFixed(1);
+        const color = colors[i] || '#94a3b8';
+        
+        html += `<div style="background: rgba(30, 41, 59, 0.4); padding: 1.5rem; border-radius: 8px; border-left: 4px solid ${color};">`;
+        html += `   <h4 style="margin: 0 0 1rem 0; color: ${color}; font-size: 1.15rem; font-weight: 600;">[순위 ${i+1}위] ${reason} <span style="font-size:0.9rem; color:#94a3b8; font-weight:normal;">(${count}건 접수 / 비율 ${pct}%)</span></h4>`;
+        
+        let advice = "";
+        if (reason.includes('이염') || reason.includes('오염')) {
+            advice = "가장 높은 비중을 차지하는 주요 이슈입니다. 세탁 전/후 검수 프로세스 강화 및 특정 오염원에 대한 케어 레시피 점검이 필요합니다.";
+        } else if (reason.includes('원단 손상') || reason.includes('파손')) {
+            advice = "고객 배상으로 직결되는 중요 항목입니다. 세탁망 사용 기준 확인 및 기계 내부/고온 건조 공정의 퀄리티 체킹을 강화해 주세요.";
+        } else if (reason.includes('수축')) {
+            advice = "의류 변형 관련 불만이 지속적으로 발생합니다. 건조 공정 시간이나 온도 세팅, 세탁 라벨 확인 프로세스 점검이 필요합니다.";
+        } else if (reason.includes('분실') || reason.includes('오배송')) {
+            advice = "치명적인 서비스 오류입니다. 입출고 바코드 스캔, 패킹 프로세스 점검 및 작업자 교육이 시급합니다.";
+        } else if (reason.includes('수선미흡')) {
+            advice = "수선 오매칭 또는 기장 조절 오류가 발생하고 있습니다. 수선 공정 작업자 재교육 및 오더 재확인 절차를 권장합니다.";
+        } else if (reason.includes('부속품 손상')) {
+            advice = "세탁 전 부속품(단추/지퍼 등) 상태 사전 확인 및 보호 덮개/세탁망 사용 등의 선제적 조치가 필요합니다.";
+        } else {
+            advice = "해당 유형이 지속적으로 접수되고 있으므로 세부 내용 확인 및 향후 데이터 변동 추이를 주의 깊게 모니터링해야 합니다.";
+        }
+
+        html += `   <p style="margin: 0 0 1.2rem 0; font-size: 0.95rem; color: #cbd5e1; line-height: 1.6;">`;
+        html += `       💡 <strong>운영 조치 권고사항:</strong> ${advice}`;
+        html += `   </p>`;
+
+        const reasonData = filteredData.filter(d => d.reason === reason);
+        let groupedIssues = {};
+        let patternsDefined = patternDict[reason] || {};
+
+        reasonData.forEach(item => {
+            let matchedPattern = null;
+            for (const [patternName, keywords] of Object.entries(patternsDefined)) {
+                if (keywords.some(kw => item.details.includes(kw))) {
+                    matchedPattern = patternName;
+                    break;
+                }
+            }
+            let groupKey = matchedPattern || extractCoreIssue(item.details);
+
+            if (!groupedIssues[groupKey]) {
+                groupedIssues[groupKey] = { total: 0, items: {} };
+            }
+            groupedIssues[groupKey].total += 1;
+            let itemName = item.item || '품목 미기재';
+            groupedIssues[groupKey].items[itemName] = (groupedIssues[groupKey].items[itemName] || 0) + 1;
+        });
+
+        const sortedGroups = Object.entries(groupedIssues).sort((a, b) => b[1].total - a[1].total);
+
+        html += `   <div style="background: rgba(15, 23, 42, 0.5); padding: 1.2rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">`;
+        html += `       <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 0.8rem; font-size: 0.95rem;">📑 상세 발생 원인 및 품목 집계</div>`;
+        html += `       <ul style="list-style: none; padding: 0; margin: 0; color: #cbd5e1; font-size: 0.9rem; line-height: 1.8;">`;
+
+        sortedGroups.forEach(([groupName, data]) => {
+            let itemStrings = [];
+            const sortedItems = Object.entries(data.items).sort((a,b) => b[1] - a[1]);
+            sortedItems.forEach(([itemName, itemCount]) => {
+                itemStrings.push(`${itemName} ${itemCount}건`);
+            });
+            let itemSummary = itemStrings.join(', ');
+
+            html += `       <li style="margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.02);">`;
+            html += `           <span style="color: #f8fafc; font-weight: 500;">📌 ${groupName}</span> `;
+            html += `           <span style="color: #34d399;">(${itemSummary})</span>`;
+            html += `       </li>`;
+        });
+
+        html += `       </ul>`;
+        html += `   </div>`; 
+        html += `</div>`; 
+    }
+    
+    html += `</div>`;
+    return html;
+}
+
+// === Filters ===
+function updateMonthFilters() {
+    const months = new Set();
+    appData.forEach(item => {
+        if(item.date) {
+            const d = new Date(item.date);
+            const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+            months.add(monthStr);
+        }
+    });
+    const sortedMonths = Array.from(months).sort().reverse();
+    const fTable = document.getElementById('month-filter-table');
+    const fDash = document.getElementById('month-filter-dashboard');
+    const currTableVal = fTable.value;
+    const currDashVal = fDash.value;
+
+    const buildOptions = () => {
+        let html = '<option value="all">전체 기간</option>';
+        sortedMonths.forEach(m => html += `<option value="${m}">${m}</option>`);
+        return html;
+    };
+
+    fTable.innerHTML = buildOptions();
+    fDash.innerHTML = buildOptions();
+    if(sortedMonths.includes(currTableVal)) fTable.value = currTableVal;
+    if(sortedMonths.includes(currDashVal)) fDash.value = currDashVal;
+}
+
+function filterDataByMonth(data, monthStr) {
+    if(monthStr === 'all') return data;
+    return data.filter(item => {
+        if(!item.date) return false;
+        const d = new Date(item.date);
+        const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+        return m === monthStr;
+    });
+}
+
+document.getElementById('month-filter-dashboard').addEventListener('change', renderDashboard);
+document.getElementById('month-filter-table').addEventListener('change', renderTable);
+
+// === Excel Export ===
+document.getElementById('export-excel-btn').addEventListener('click', () => {
+    if(appData.length === 0) return alert("데이터가 없습니다.");
+    const filter = document.getElementById('month-filter-table').value;
+    const filteredData = filterDataByMonth(appData, filter);
+
+    const excelData = filteredData.map(row => ({
+        "등록일": new Date(row.date).toLocaleDateString(),
+        "회원카드": row.memberCard,
+        "보상사유": row.reason,
+        "바코드": row.barcode,
+        "품목": row.item,
+        "선안내여부": row.preNotified,
+        "접수경로": row.route,
+        "접수자": row.receiver,
+        "상세내용": row.details
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "보상데이터");
+
+    const wscols = [{wch: 12}, {wch: 15}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 20}, {wch: 50}];
+    worksheet['!cols'] = wscols;
+    XLSX.writeFile(workbook, `laundry_compensation_data_${filter}.xlsx`);
+});
+
+// === Initial Load ===
+loadData();
