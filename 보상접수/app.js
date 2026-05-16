@@ -1,13 +1,3 @@
-아! 처음에 제가 올려주신 app.js 코드를 보았을 때 작성되어 있던 "중복 발생 패턴 요약 (시스템/공정상의 취약점 여부 판단)" 문구를 말씀하시는 거군요!
-
-보고서를 보시는 분들 입장에서는 "1. 짧은 요약 문장"을 먼저 쓱 읽고, 더 궁금하면 그 아래 "2. 상세 품목 집계 리스트"를 보는 것이 가장 완벽한 흐름이 되죠! 정말 보고서의 정석 같은 구성입니다.
-
-말씀하신 대로 기존의 훌륭했던 요약 문장(단발성 실수인지, 공정 취약점인지 판단하는 문구)을 그대로 위에 살려두고, 팝업 링크 속성만 뺀 상태로 인쇄용으로 만들었습니다. 그리고 바로 그 밑에 품목별 상세 분석 박스가 들어가게 완벽히 합쳤습니다.
-
-이번에도 에러가 나지 않도록 오른쪽 위 Copy code 버튼을 누르시거나, 안쪽을 클릭하고 Ctrl + A -> Ctrl + C 로 안전하게 복사해주세요!
-
-💡 최종 통합 완성본 app.js (전체 덮어쓰기)
-JavaScript
 // === Data Management ===
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwJd21AxK_1duyM6QCzoriO7YVwpz2llRhkclTyR91A5G3SsEOfrsRg8RJ7lc_sxFW/exec";
 let appData = [];
