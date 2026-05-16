@@ -43,7 +43,7 @@ const THEME_COLORS = [
     'rgba(245, 158, 11, 0.8)', // yellow
     'rgba(239, 68, 68, 0.8)',  // red
     'rgba(139, 92, 246, 0.8)', // purple
-    'rgba(236, 72, 153, 0.8)', // pink
+    'rgba(236, 72, 153, 0.8)'  // pink
 ];
 
 // === Navigation ===
@@ -595,4 +595,63 @@ function updateMonthFilters() {
             months.add(monthStr);
         }
     });
-    const sortedMonths = Array.from
+    const sortedMonths = Array.from(months).sort().reverse();
+    const fTable = document.getElementById('month-filter-table');
+    const fDash = document.getElementById('month-filter-dashboard');
+    const currTableVal = fTable.value;
+    const currDashVal = fDash.value;
+
+    const buildOptions = () => {
+        let html = '<option value="all">전체 기간</option>';
+        sortedMonths.forEach(m => html += `<option value="${m}">${m}</option>`);
+        return html;
+    };
+
+    fTable.innerHTML = buildOptions();
+    fDash.innerHTML = buildOptions();
+    if(sortedMonths.includes(currTableVal)) fTable.value = currTableVal;
+    if(sortedMonths.includes(currDashVal)) fDash.value = currDashVal;
+}
+
+function filterDataByMonth(data, monthStr) {
+    if(monthStr === 'all') return data;
+    return data.filter(item => {
+        if(!item.date) return false;
+        const d = new Date(item.date);
+        const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+        return m === monthStr;
+    });
+}
+
+document.getElementById('month-filter-dashboard').addEventListener('change', renderDashboard);
+document.getElementById('month-filter-table').addEventListener('change', renderTable);
+
+// === Excel Export ===
+document.getElementById('export-excel-btn').addEventListener('click', () => {
+    if(appData.length === 0) return alert("데이터가 없습니다.");
+    const filter = document.getElementById('month-filter-table').value;
+    const filteredData = filterDataByMonth(appData, filter);
+
+    const excelData = filteredData.map(row => ({
+        "등록일": new Date(row.date).toLocaleDateString(),
+        "회원카드": row.memberCard,
+        "보상사유": row.reason,
+        "바코드": row.barcode,
+        "품목": row.item,
+        "선안내여부": row.preNotified,
+        "접수경로": row.route,
+        "접수자": row.receiver,
+        "상세내용": row.details
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "보상데이터");
+
+    const wscols = [{wch: 12}, {wch: 15}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 20}, {wch: 50}];
+    worksheet['!cols'] = wscols;
+    XLSX.writeFile(workbook, `laundry_compensation_data_${filter}.xlsx`);
+});
+
+// === Initial Load ===
+loadData();
