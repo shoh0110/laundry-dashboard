@@ -263,10 +263,24 @@ function renderTable() {
 }
 
 // === Render Dashboard ===
+// === Render Dashboard ===
 function renderDashboard() {
     const filter = document.getElementById('month-filter-dashboard').value;
     const filteredData = filterDataByMonth(appData, filter);
     
+    // ✨ [추가] 선택한 기간에 따라 대시보드 대제목을 동적으로 변경하는 로직
+    const titleElement = document.querySelector('#dashboard-view .view-header h1');
+    if (titleElement) {
+        if (filter === 'all') {
+            titleElement.innerText = "보상접수 월별 취합데이터";
+        } else {
+            // 예: 2026-05 -> 2026년 05월 형태로 깔끔하게 표시
+            const [year, month] = filter.split('-');
+            titleElement.innerText = `보상접수 월별 취합데이터 (${year}년 ${month}월)`;
+        }
+    }
+    
+    // Total
     document.getElementById('total-cases').innerText = filteredData.length + " 건";
 
     if(filteredData.length === 0) {
@@ -315,6 +329,78 @@ function renderDashboard() {
                 hoverOffset: 4
             }]
         },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label.split(' (')[0] + ': ' + context.parsed + '건';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Item Chart
+    const sortedItems = Object.entries(itemsCount).sort((a, b) => b[1] - a[1]);
+    const totalItems = sortedItems.reduce((sum, item) => sum + item[1], 0);
+    const itemLabels = sortedItems.map(item => item[0]);
+    const itemCounts = sortedItems.map(item => item[1]);
+    const itemPercentages = sortedItems.map(item => ((item[1] / totalItems) * 100).toFixed(1));
+
+    const ctxItem = document.getElementById('itemChart').getContext('2d');
+    if(itemChartInst) itemChartInst.destroy();
+    itemChartInst = new Chart(ctxItem, {
+        type: 'bar',
+        data: {
+            labels: itemLabels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: '백분율(%)',
+                    data: itemPercentages,
+                    borderColor: 'rgba(245, 158, 11, 1)',
+                    backgroundColor: 'rgba(245, 158, 11, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    yAxisID: 'y1'
+                },
+                {
+                    type: 'bar',
+                    label: '건수',
+                    data: itemCounts,
+                    backgroundColor: 'rgba(52, 211, 153, 0.8)',
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    grid: { display: false },
+                    ticks: { autoSkip: false, maxRotation: 90, minRotation: 90 }
+                },
+                y: { 
+                    type: 'linear', display: true, position: 'left', beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: '건수' }
+                },
+                y1: {
+                    type: 'linear', display: true, position: 'right', beginAtZero: true,
+                    grid: { drawOnChartArea: false }, title: { display: true, text: '백분율 (%)' },
+                    ticks: { callback: function(value) { return value + '%'; } }
+                }
+            },
+            plugins: { legend: { display: true, position: 'top' } }
+        }
+    });
+}
         options: {
             responsive: true,
             maintainAspectRatio: false,
