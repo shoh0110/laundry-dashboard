@@ -1,11 +1,3 @@
-이전 버전의 그 디테일한 분석 문구가 확실히 실무에서 문제의 핵심을 짚어내기 좋았죠!
-
-말씀하신 피드백을 완벽하게 반영하여, [단락 1]에 "🔍 주요 중복 패턴 (ex: 고온 건조/다림질로 인한 원단 녹음 및 변형 8건)"이 먼저 눈에 띄게 표시되고, 그 밑에 "💡 운영 조치 권고사항"이 자연스럽게 이어지도록 구조를 더욱 탄탄하게 짰습니다.
-
-이번에도 복사하실 때 ! 같은 기호가 섞여 들어가지 않도록 조심하시면서, 내 컴퓨터의 app.js를 전체 선택(Ctrl + A) 후 싹 지우시고 아래 코드로 덮어쓰기 해주세요!
-
-💡 최종 진화형 app.js (전체 덮어쓰기)
-JavaScript
 // === Data Management ===
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwJd21AxK_1duyM6QCzoriO7YVwpz2llRhkclTyR91A5G3SsEOfrsRg8RJ7lc_sxFW/exec";
 let appData = [];
