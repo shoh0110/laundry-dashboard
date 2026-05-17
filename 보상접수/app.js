@@ -275,10 +275,10 @@ function renderDashboard() {
     const titleElement = document.querySelector('#dashboard-view .view-header h1');
     if (titleElement) {
         if (filter === 'all') {
-            titleElement.innerText = "보상접수 데이터 월별 취합";
+            titleElement.innerText = "월간 보상 운영 인사이트";
         } else {
             const [year, month] = filter.split('-');
-            titleElement.innerText = `보상접수 데이터 월별 취합 (${year}년 ${month}월)`;
+            titleElement.innerText = `월간 보상 운영 인사이트 (${year}년 ${month}월)`;
         }
     }
     
@@ -458,7 +458,7 @@ function getTop(countObj) {
 // ✨ 수정: 일반적인 "세탁 후 손상" 그룹을 하나로 묶기 위한 패턴 추가
 const patternDict = {
     "원단 손상": {
-        "세탁 공정 중 발생한 원단 손상 (일반)": ["세탁 후 손상", "세탁후 손상", "세탁 과정 손상", "세탁 중 손상", "세탁손상"],
+        "세탁 공정 중 발생한 원단 손상 (일반)": ["세탁 후 손상", "세탁후 손상", "세탁 과정 손상", "세탁 중 손상", "세탁손상", "세탁 공정 중 발생한 원단 손상", "세탁후 원단 손상", "세탁 후 원단 손상"],
         "벨크로(찍찍이) 마찰 손상": ["벨크로", "찍찍이"],
         "세탁기/기계 내부 끼임 및 빨려들어감": ["기계", "부속품 이탈", "부속품이 빠진", "세탁기 안", "세탁기 내부", "빨려", "기기 내부"],
         "고온 건조/다림질로 인한 원단 녹음 및 변형": ["고온 건조", "고온건조", "녹음", "버블현상", "고온 다림질", "다려"],
@@ -521,6 +521,9 @@ function extractCoreIssue(details) {
     
     // 불필요한 단어 싹둑
     core = core.replace(/해당 세탁물 /g, '')
+               .replace(/\(일반\/.*$/, '(일반)')
+               .replace(/으로 인해 1차와 2차 안심케어 진행.*$/, '')
+               .replace(/으로 인해.*안심케어 진행.*$/, '')
                .replace(/으로 안심케어건 입니다\.?/g, '')
                .replace(/안심케어건 입니다\.?/g, '')
                .replace(/발견/g, '')
