@@ -103,8 +103,12 @@ document.getElementById('parse-btn').addEventListener('click', () => {
     try {
         const parsed = parseText(raw);
         const matchedCategory = autoCategorizeReason(parsed.reason, raw);
-        document.getElementById('reason-select').value = matchedCategory;
         parsed.reason = matchedCategory; 
+        
+        const selectedDate = document.getElementById('date-input').value;
+        if(selectedDate) {
+            parsed.date = new Date(selectedDate).toISOString();
+        }
         
         if(!parsed.item) {
             alert("입력 양식을 정확히 인식할 수 없습니다. 양식을 확인해주세요.");
@@ -284,7 +288,6 @@ function renderDashboard() {
         document.getElementById('top-item').innerText = "-";
         const insightBox = document.getElementById('monthly-insight-text');
         if (insightBox) insightBox.innerHTML = "해당 기간의 데이터가 없습니다.";
-        if(reasonChartInst) reasonChartInst.destroy();
         if(itemChartInst) itemChartInst.destroy();
         return;
     }
@@ -305,48 +308,9 @@ function renderDashboard() {
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.font.family = 'Inter';
 
-    const sortedReasons = Object.entries(reasonsCount).sort((a, b) => b[1] - a[1]);
-    const totalReasons = sortedReasons.reduce((sum, item) => sum + item[1], 0);
-    const reasonLabels = sortedReasons.map(([key, count]) => {
-        const percentage = ((count / totalReasons) * 100).toFixed(1);
-        return `${key} (${percentage}%)`;
-    });
-    const reasonData = sortedReasons.map(item => item[1]);
-
-    const ctxReason = document.getElementById('reasonChart').getContext('2d');
-    if(reasonChartInst) reasonChartInst.destroy();
-    reasonChartInst = new Chart(ctxReason, {
-        type: 'doughnut',
-        data: {
-            labels: reasonLabels,
-            datasets: [{
-                data: reasonData,
-                backgroundColor: THEME_COLORS,
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { 
-                legend: { position: 'right' },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.label.split(' (')[0] + ': ' + context.parsed + '건';
-                        }
-                    }
-                }
-            }
-        }
-    });
-
     const sortedItems = Object.entries(itemsCount).sort((a, b) => b[1] - a[1]);
-    const totalItems = sortedItems.reduce((sum, item) => sum + item[1], 0);
     const itemLabels = sortedItems.map(item => item[0]);
     const itemCounts = sortedItems.map(item => item[1]);
-    const itemPercentages = sortedItems.map(item => ((item[1] / totalItems) * 100).toFixed(1));
 
     const ctxItem = document.getElementById('itemChart').getContext('2d');
     if(itemChartInst) itemChartInst.destroy();
@@ -356,22 +320,11 @@ function renderDashboard() {
             labels: itemLabels,
             datasets: [
                 {
-                    type: 'line',
-                    label: '백분율(%)',
-                    data: itemPercentages,
-                    borderColor: 'rgba(245, 158, 11, 1)',
-                    backgroundColor: 'rgba(245, 158, 11, 1)',
-                    borderWidth: 2,
-                    tension: 0.3,
-                    yAxisID: 'y1'
-                },
-                {
                     type: 'bar',
                     label: '건수',
                     data: itemCounts,
                     backgroundColor: 'rgba(52, 211, 153, 0.8)',
-                    borderRadius: 4,
-                    yAxisID: 'y'
+                    borderRadius: 4
                 }
             ]
         },
@@ -386,14 +339,9 @@ function renderDashboard() {
                 y: { 
                     type: 'linear', display: true, position: 'left', beginAtZero: true, 
                     grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: '건수' }
-                },
-                y1: {
-                    type: 'linear', display: true, position: 'right', beginAtZero: true,
-                    grid: { drawOnChartArea: false }, title: { display: true, text: '백분율 (%)' },
-                    ticks: { callback: function(value) { return value + '%'; } }
                 }
             },
-            plugins: { legend: { display: true, position: 'top' } }
+            plugins: { legend: { display: false } }
         }
     });
 }
@@ -647,6 +595,23 @@ function updateMonthFilters() {
             months.add(monthStr);
         }
     });
+    
+    // 2024년 4월부터 현재 달력상 날짜까지 빈 월도 포함
+    const startYear = 2024;
+    const startMonth = 4;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    for (let y = startYear; y <= currentYear; y++) {
+        let mStart = (y === startYear) ? startMonth : 1;
+        let mEnd = (y === currentYear) ? currentMonth : 12;
+        for (let m = mStart; m <= mEnd; m++) {
+            const monthStr = `${y}-${String(m).padStart(2, '0')}`;
+            months.add(monthStr);
+        }
+    }
+
     const sortedMonths = Array.from(months).sort().reverse();
     const fTable = document.getElementById('month-filter-table');
     const fDash = document.getElementById('month-filter-dashboard');

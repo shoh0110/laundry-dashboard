@@ -21,27 +21,27 @@
         <p>데이터 처리중...</p>
     </div>
 
-    <div class="app-container">
-        <!-- Sidebar Navigation -->
-        <nav class="sidebar">
+    <div class="app-container" style="flex-direction: column;">
+        <!-- Top Navigation -->
+        <header class="top-nav glass-panel" style="margin: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem;">
             <div class="logo">
-                <h2 style="font-size: 1.3rem; line-height: 1.4;">야간세탁운영팀<br><span>보상접수데이터</span></h2>
+                <h2 style="font-size: 1.2rem; margin: 0; font-weight: 700; letter-spacing: -0.5px;">야간세탁운영팀 <span style="color: #3b82f6;">보상접수데이터</span></h2>
             </div>
-            <ul class="nav-links">
-                <li class="active" data-target="dashboard-view">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+            <ul class="nav-links" style="display: flex; flex-direction: row; gap: 1rem; margin: 0; padding: 0; list-style: none;">
+                <li class="active" data-target="dashboard-view" style="padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
                     대시보드
                 </li>
-                <li data-target="input-view">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <li data-target="input-view" style="padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                     데이터 입력
                 </li>
-                <li data-target="table-view">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg>
+                <li data-target="table-view" style="padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="9" x2="9" y2="21"></line><line x1="15" y1="9" x2="15" y2="21"></line></svg>
                     스프레드시트
                 </li>
             </ul>
-        </nav>
+        </header>
 
         <!-- Main Content Area -->
         <main class="main-content">
@@ -58,32 +58,24 @@
                     </div>
                 </header>
                 
-                <div class="dashboard-top-row">
-                    <!-- 왼쪽: 통계 카드 (세로) + 보상사유비율 -->
-                    <div class="left-panel">
-                        <div class="stats-col">
-                            <div class="stat-card-sm glass-panel">
-                                <h3>총 보상 건수</h3>
-                                <p class="stat-value-sm" id="total-cases">0</p>
-                            </div>
-                            <div class="stat-card-sm glass-panel">
-                                <h3>가장 흔한 보상 사유</h3>
-                                <p class="stat-value-sm" id="top-reason">-</p>
-                            </div>
-                            <div class="stat-card-sm glass-panel">
-                                <h3>가장 잦은 품목</h3>
-                                <p class="stat-value-sm" id="top-item">-</p>
-                            </div>
+                <div class="dashboard-top-row" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <!-- 상단: 통계 카드 (가로 배열) -->
+                    <div class="stats-col" style="display: flex; flex-direction: row; gap: 1.5rem;">
+                        <div class="stat-card-sm glass-panel" style="flex: 1;">
+                            <h3>총 보상 건수</h3>
+                            <p class="stat-value-sm" id="total-cases">0</p>
                         </div>
-                        <div class="chart-card glass-panel reason-chart-card">
-                            <h3>보상 사유 비율</h3>
-                            <div class="chart-container" style="height: 280px;">
-                                <canvas id="reasonChart"></canvas>
-                            </div>
+                        <div class="stat-card-sm glass-panel" style="flex: 1;">
+                            <h3>가장 흔한 보상 사유</h3>
+                            <p class="stat-value-sm" id="top-reason">-</p>
+                        </div>
+                        <div class="stat-card-sm glass-panel" style="flex: 1;">
+                            <h3>가장 잦은 품목</h3>
+                            <p class="stat-value-sm" id="top-item">-</p>
                         </div>
                     </div>
-
-                    <!-- 오른쪽: 품목별 보상 건수 (크게) -->
+                    
+                    <!-- 하단: 품목별 보상 건수 -->
                     <div class="chart-card glass-panel item-chart-card">
                         <h3>품목별 보상 건수</h3>
                         <div class="chart-container" style="height: 420px;">
@@ -112,18 +104,8 @@
                 
                 <div class="input-container glass-panel">
                     <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="reason-select" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">보상 사유 선택</label>
-                        <select id="reason-select" class="glass-select" style="width: 100%; margin-bottom: 1rem;">
-                            <option value="분실">분실</option>
-                            <option value="원단 손상">원단 손상</option>
-                            <option value="부속품 손상">부속품 손상</option>
-                            <option value="파손">파손</option>
-                            <option value="이염">이염</option>
-                            <option value="수선미흡">수선미흡</option>
-                            <option value="수축">수축</option>
-                            <option value="오배송">오배송</option>
-                            <option value="기타">기타</option>
-                        </select>
+                        <label for="date-input" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">등록일 (직접 지정)</label>
+                        <input type="date" id="date-input" class="glass-select" style="width: 100%; margin-bottom: 1rem; color: white;">
                     </div>
                     <textarea id="raw-input" placeholder="-회원카드: FX0XZ3JW&#10;-최초 수거일 바코드 및 품목명: &#10;CFAB00103165 / 재킷&#10;..."></textarea>
                     <button id="parse-btn" class="primary-btn">데이터 분석 및 저장</button>
