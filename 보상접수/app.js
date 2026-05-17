@@ -660,9 +660,14 @@ function generateInsight(filteredData, reasonsCount, totalCount) {
             });
             let itemSummary = itemStrings.join(', ');
 
+            let totalCountText = "";
+            if (data.total >= 2) {
+                totalCountText = ` <span style="color: #60a5fa; font-weight: 600; margin-left: 6px;">[총 ${data.total}건]</span>`;
+            }
+
             html += `               <li style="margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.02);">`;
             html += `                   <span style="color: #f8fafc; font-weight: 500;">📌 ${groupName}</span> `;
-            html += `                   <span style="color: #94a3b8;">(${itemSummary})</span>`;
+            html += `                   <span style="color: #94a3b8;">(${itemSummary})</span>${totalCountText}`;
             html += `               </li>`;
         });
 
