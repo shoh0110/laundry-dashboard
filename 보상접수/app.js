@@ -288,6 +288,7 @@ function renderDashboard() {
         document.getElementById('top-item').innerText = "-";
         const insightBox = document.getElementById('monthly-insight-text');
         if (insightBox) insightBox.innerHTML = "해당 기간의 데이터가 없습니다.";
+        if(reasonChartInst) reasonChartInst.destroy();
         if(itemChartInst) itemChartInst.destroy();
         return;
     }
@@ -307,6 +308,43 @@ function renderDashboard() {
 
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.font.family = 'Inter';
+
+    const sortedReasons = Object.entries(reasonsCount).sort((a, b) => b[1] - a[1]);
+    const totalReasons = sortedReasons.reduce((sum, item) => sum + item[1], 0);
+    const reasonLabels = sortedReasons.map(([key, count]) => {
+        const percentage = ((count / totalReasons) * 100).toFixed(1);
+        return `${key} (${percentage}%)`;
+    });
+    const reasonData = sortedReasons.map(item => item[1]);
+
+    const ctxReason = document.getElementById('reasonChart').getContext('2d');
+    if(reasonChartInst) reasonChartInst.destroy();
+    reasonChartInst = new Chart(ctxReason, {
+        type: 'doughnut',
+        data: {
+            labels: reasonLabels,
+            datasets: [{
+                data: reasonData,
+                backgroundColor: THEME_COLORS,
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label.split(' (')[0] + ': ' + context.parsed + '건';
+                        }
+                    }
+                }
+            }
+        }
+    });
 
     const sortedItems = Object.entries(itemsCount).sort((a, b) => b[1] - a[1]);
     const itemLabels = sortedItems.map(item => item[0]);
@@ -595,23 +633,6 @@ function updateMonthFilters() {
             months.add(monthStr);
         }
     });
-    
-    // 2024년 4월부터 현재 달력상 날짜까지 빈 월도 포함
-    const startYear = 2024;
-    const startMonth = 4;
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-
-    for (let y = startYear; y <= currentYear; y++) {
-        let mStart = (y === startYear) ? startMonth : 1;
-        let mEnd = (y === currentYear) ? currentMonth : 12;
-        for (let m = mStart; m <= mEnd; m++) {
-            const monthStr = `${y}-${String(m).padStart(2, '0')}`;
-            months.add(monthStr);
-        }
-    }
-
     const sortedMonths = Array.from(months).sort().reverse();
     const fTable = document.getElementById('month-filter-table');
     const fDash = document.getElementById('month-filter-dashboard');

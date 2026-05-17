@@ -58,24 +58,32 @@
                     </div>
                 </header>
                 
-                <div class="dashboard-top-row" style="display: flex; flex-direction: column; gap: 1.5rem;">
-                    <!-- 상단: 통계 카드 (가로 배열) -->
-                    <div class="stats-col" style="display: flex; flex-direction: row; gap: 1.5rem;">
-                        <div class="stat-card-sm glass-panel" style="flex: 1;">
-                            <h3>총 보상 건수</h3>
-                            <p class="stat-value-sm" id="total-cases">0</p>
+                <div class="dashboard-top-row">
+                    <!-- 왼쪽: 통계 카드 (세로) + 보상사유비율 -->
+                    <div class="left-panel">
+                        <div class="stats-col">
+                            <div class="stat-card-sm glass-panel">
+                                <h3>총 보상 건수</h3>
+                                <p class="stat-value-sm" id="total-cases">0</p>
+                            </div>
+                            <div class="stat-card-sm glass-panel">
+                                <h3>가장 흔한 보상 사유</h3>
+                                <p class="stat-value-sm" id="top-reason">-</p>
+                            </div>
+                            <div class="stat-card-sm glass-panel">
+                                <h3>가장 잦은 품목</h3>
+                                <p class="stat-value-sm" id="top-item">-</p>
+                            </div>
                         </div>
-                        <div class="stat-card-sm glass-panel" style="flex: 1;">
-                            <h3>가장 흔한 보상 사유</h3>
-                            <p class="stat-value-sm" id="top-reason">-</p>
-                        </div>
-                        <div class="stat-card-sm glass-panel" style="flex: 1;">
-                            <h3>가장 잦은 품목</h3>
-                            <p class="stat-value-sm" id="top-item">-</p>
+                        <div class="chart-card glass-panel reason-chart-card">
+                            <h3>보상 사유 비율</h3>
+                            <div class="chart-container" style="height: 280px;">
+                                <canvas id="reasonChart"></canvas>
+                            </div>
                         </div>
                     </div>
-                    
-                    <!-- 하단: 품목별 보상 건수 -->
+
+                    <!-- 오른쪽: 품목별 보상 건수 (크게) -->
                     <div class="chart-card glass-panel item-chart-card">
                         <h3>품목별 보상 건수</h3>
                         <div class="chart-container" style="height: 420px;">
