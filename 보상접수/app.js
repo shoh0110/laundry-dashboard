@@ -36,6 +36,7 @@ async function loadData() {
 // Chart Instances
 let reasonChartInst = null;
 let itemChartInst = null;
+let dateChartInst = null;
 
 const THEME_COLORS = [
     'rgba(59, 130, 246, 0.8)', // blue
@@ -289,6 +290,7 @@ function renderDashboard() {
         const insightBox = document.getElementById('monthly-insight-text');
         if (insightBox) insightBox.innerHTML = "해당 기간의 데이터가 없습니다.";
         if(reasonChartInst) reasonChartInst.destroy();
+        if(dateChartInst) dateChartInst.destroy();
         if(itemChartInst) itemChartInst.destroy();
         return;
     }
@@ -343,6 +345,54 @@ function renderDashboard() {
                     }
                 }
             }
+        }
+    });
+
+    const dateCountsObj = filteredData.reduce((acc, curr) => {
+        if(!curr.date) return acc;
+        const d = new Date(curr.date);
+        const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        acc[ymd] = (acc[ymd] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const sortedDates = Object.keys(dateCountsObj).sort((a,b) => new Date(a) - new Date(b));
+    const dateLabels = sortedDates;
+    const dateData = sortedDates.map(d => dateCountsObj[d]);
+
+    const ctxDate = document.getElementById('dateChart').getContext('2d');
+    if(dateChartInst) dateChartInst.destroy();
+    dateChartInst = new Chart(ctxDate, {
+        type: 'line',
+        data: {
+            labels: dateLabels,
+            datasets: [{
+                label: '건수',
+                data: dateData,
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    grid: { display: false },
+                    ticks: { autoSkip: true, maxTicksLimit: 10, maxRotation: 45, minRotation: 45 }
+                },
+                y: { 
+                    type: 'linear', display: true, position: 'left', beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: '건수' }
+                }
+            },
+            plugins: { legend: { display: false } }
         }
     });
 
